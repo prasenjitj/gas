@@ -1,0 +1,690 @@
+<script>
+  google.script.run.withSuccessHandler(main).mainCallback();
+  google.script.run.withSuccessHandler(displayUnoToday).getTodayUno();
+
+  /**
+   * Get the feedback text from the input modal.
+   */
+  function getFeedbackText() {
+    let message = $("#message-text").val();
+    // console.log(message);
+    google.script.run.withSuccessHandler(onSuccess).writeFormResponse(message);
+    $("#submit-button").hide();
+
+    // document.getElementById("staticBackdrop").dispose();
+  }
+  /**
+   * onSuccess method as callback function.
+   */
+  function onSuccess() {
+    $("#modal-form").hide();
+    $("#success-message").show();
+    $("#modal-form").hide();
+  }
+  /**
+   * Return false if Object is empty
+   * @param {Object} object
+   * @returns {Object}
+   */
+  function isEmpty(object) {
+    return Object.keys(object).length === 0;
+  }
+
+  /**
+   * Get Hours between 2 date and timestamp if mode is day it returns difference
+   * between dates in number of days otherwise returns number of hours.
+   * @param {String} from Start Date
+   * @param {String} to End Date
+   * @param {String} mode "day" to specify calaulation of difference between days in number of days.
+   * @returns {number}
+   */
+  function dateDiff(from, to, mode) {
+    let fromdate = new Date(from);
+    let todate = new Date(to);
+    let diff = todate - fromdate;
+    if (mode == "day") {
+      return Math.ceil(diff / (1000 * 3600 * 24));
+    }
+    return Math.ceil(diff / (1000 * 3600));
+  }
+  /**
+   * Leave is planned if time difference between
+   * date of application and leave is 15 hours or less.
+   * In case of leave applied for monday the diff
+   * should be <= 63 hours.
+   * @param {Array.<Object>} array Array of Unno reocrds
+   * @returns {Array.<Object>} array Array of Unno reocrds
+   *
+   */
+  function populateUnplanned(array) {
+    // console.log("inside populate unplanned leave", array);
+    array.forEach((item) => {
+      let hourDiff = dateDiff(item.timestamp, item.from, "");
+      let day = new Date(item.from).getDay();
+      if (day == 1 && hourDiff >= 63) {
+        item["type"] = "planned";
+        item["hourDiff"] = hourDiff;
+      } else if (hourDiff >= 15) {
+        item["type"] = "planned";
+        item["hourDiff"] = hourDiff;
+      } else {
+        item["type"] = "unplanned";
+        item["hourDiff"] = hourDiff;
+      }
+    });
+    return array;
+  }
+  /**
+   * Sort the data for graph.
+   * @param {}
+   */
+  function sortArrayObjects(arrayLabel, dataset_1, dataset_2) {
+    let arrayOfObj = arrayLabel.map(function (d, i) {
+      return {
+        label: d,
+        data_1: dataset_1[d] ? dataset_1[d]["total"] : 0,
+        data_2: dataset_2[d] || 0,
+      };
+    });
+
+    let sortedArrayOfObj = arrayOfObj.sort(function (a, b) {
+      return b.data_2 - a.data_2;
+    });
+    let newLabels = [];
+    let newDatasetOne = [];
+    let newDatasetTwo = [];
+
+    sortedArrayOfObj.forEach(function (d) {
+      newLabels.push(d.label);
+      newDatasetOne.push(d.data_1);
+      newDatasetTwo.push(d.data_2);
+    });
+    return [newLabels, newDatasetOne, newDatasetTwo];
+  }
+  /**
+   * @param {Object} leaveCount
+   * @return {Object} graphMap {"kholiya":{"Full Day":10,"unplanned":21,"planned":2,"Half Day":6.5}} with multiple
+   */
+  function graphData(leaveCount) {
+    // console.log("leaveCount : ", leaveCount);
+    let graphMap = {};
+    let ldaps = leaveCount.keys();
+    for (let i of ldaps) {
+      let obj = {};
+      let count = 0;
+      let hdaycount = 0;
+      let longleavecount = 0;
+      let plannedSum = 0;
+      let unplannedSum = 0;
+      let ldapObj = leaveCount.get(i);
+      let leavetypes = ldapObj.keys();
+      for (let j of leavetypes) {
+        let l3 = ldapObj.get(j); //l3 is list of data
+
+        for (let k of l3) {
+          if (k["status"] == "APPROVED") {
+            if (k["leavetype"] == "Full Day") {
+              count = count + 1;
+              obj["Full Day"] = count;
+            }
+            if (
+              k["leavetype"] == "Second Half" ||
+              k["leavetype"] == "First Half"
+            ) {
+              hdaycount = hdaycount + 0.5;
+              obj["Half Day"] = hdaycount;
+            }
+            if (k["leavetype"] == "Long Leave") {
+              longleavecount =
+                longleavecount + dateDiff(k["from"], k["to"], "day");
+              obj["Long Leave"] = longleavecount;
+            }
+            if (k["type"] == "planned") {
+              plannedSum = plannedSum + 1;
+              obj["planned"] = plannedSum;
+            }
+            if (k["type"] == "unplanned") {
+              unplannedSum = unplannedSum + 1;
+              obj["unplanned"] = unplannedSum;
+            }
+            obj["actualleaves"] = k.actualleave;
+            // console.log(i + " obj : " + JSON.stringify(obj));
+          }
+        }
+      }
+      if (!isEmpty(obj)) {
+        graphMap[i] = obj;
+      }
+    }
+    // console.log("graphMap value : "  + JSON.stringify(graphMap));
+    return graphMap;
+  }
+  /**
+   * Filter array of objects between 2 date ranges.
+   * @param {Date} start_date
+   * @param {Date} end_date
+   * @param {Array} dataSet
+   * @returns {Array} filteredItems
+   */
+  function datefilter(start_date, end_date, dataSet) {
+    let dateRef = dataSet[0].hasOwnProperty("date") ? "date" : "from";
+    const filteredItems = dataSet.filter(
+      (item, index) =>
+        new Date(item[dateRef]) >= start_date &&
+        new Date(item[dateRef]) <= end_date
+    );
+    return filteredItems;
+  }
+  /**
+   * Return Array of objects contaiing records where date is > 2021-12-31
+   * @param {Array.<Object>} data
+   * @returns {Array.<Object>} newData
+   */
+  function getLatestYearData(data) {
+    const newData = data.filter((item) => {
+      return new Date(item.from).setHours(0, 0, 0, 0) > new Date("2021-12-31");
+    });
+    return newData;
+  }
+
+  /**
+   *
+   */
+  function getTotalLeavs(data) {
+    const selectedKeys = ["Full Day", "Half Day", "Long Leave"];
+    for (let key in data) {
+      let count = 0;
+      for (let k of selectedKeys) {
+        if (data[key].hasOwnProperty(k)) {
+          count += data[key][k];
+        }
+      }
+      data[key]["total"] = count;
+    }
+    return data;
+  }
+
+  /**
+   * @param {Array.<Object>} leaveArray
+   * @returns {Object} ldap and totol leave count {ldap : x}
+   */
+  function getLeaveData(leaveArray) {
+    let leavesperldap = {};
+    let updatedLeaveMap = d3.group(
+      leaveArray,
+      (d) => d.ldap,
+      (d) => d.hour
+    );
+
+    for (let [key, value] of updatedLeaveMap.entries()) {
+      let total = 0;
+      let fullday = value.get("8");
+      let halfday = value.get("4");
+      if (fullday) {
+        fullday = fullday.length;
+        total += fullday;
+      }
+      if (halfday) {
+        halfday = halfday.length / 2;
+        total += halfday;
+      }
+      // console.log(key,fullday,halfday,total)
+      leavesperldap[key] = total;
+    }
+    let keys = Object.keys(leavesperldap);
+    let values = Object.values(leavesperldap);
+    // console.log(keys, values);
+    return leavesperldap;
+  }
+
+  function renderBarGraph(id, ldaps, fulldaydRow, halfdayRow, longRow) {
+    try {
+      let ctx = document.getElementById(id).getContext("2d");
+      let barChart = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: ldaps,
+          datasets: [
+            {
+              label: "Full day",
+              data: fulldaydRow,
+              backgroundColor: "rgb(51, 102, 255)",
+              borderColor: "rgb(51, 102, 255)",
+            },
+            {
+              label: "Half day",
+              data: halfdayRow,
+              backgroundColor: "rgb(60, 217, 39)",
+              borderColor: "rgb(60, 217, 39)",
+            },
+            {
+              label: "Long leave",
+              data: longRow,
+              backgroundColor: "rgb(255, 0, 0)",
+              borderColor: "rgb(255, 0, 0)",
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: {
+              stacked: true,
+            },
+            y: {
+              stacked: true,
+            },
+          },
+        },
+      });
+    } catch (error) {
+      console.log(error.message);
+    }
+  }
+  /**
+   * @param {String} id
+   * @param {String} label
+   * @param {Array} dataset_1
+   * @param {Array} dataset_2
+   */
+  function renderTotalGraph(id, label, dataset_1, dataset_2) {
+    try {
+      const [ldaps, totalUnno, totolActualLeves] = sortArrayObjects(
+        label,
+        dataset_1,
+        dataset_2
+      );
+      let ctx = document.getElementById(id).getContext("2d");
+      let barChart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: ldaps,
+          datasets: [
+            {
+              label: "Total Unno",
+              data: totalUnno,
+              // backgroundColor: "rgb(240, 70, 70)",
+              borderColor: "rgb(51, 102, 255)",
+              borderRadius: 2,
+              // fill: true,
+              tension: 0.4,
+            },
+            {
+              label: "Total leaves",
+              data: totolActualLeves,
+              // backgroundColor: "rgb(240, 70, 70)",
+              borderColor: "rgba(255,0,0,0.8)",
+              borderRadius: 2,
+              // fill: true,
+              tension: 0.4,
+            },
+          ],
+        },
+        options: {},
+      });
+    } catch (error) {
+      console.log(error.message);
+    }
+  }
+  /**
+   *
+   */
+  function renderPlannedGraph(id, ldaps, planned, unplanned) {
+    try {
+      let ctx = document.getElementById(id).getContext("2d");
+      let barChart = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: ldaps,
+          datasets: [
+            {
+              label: "Planned Leaves",
+              data: planned,
+              backgroundColor: "rgba(51, 102, 255, 1)",
+              borderColor: "rgb(51, 102, 255)",
+              fill: false,
+              tension: 0.2,
+            },
+            {
+              label: "Unplanned Leaves",
+              data: unplanned,
+              backgroundColor: "rgba(255,0,0,0.8)",
+              borderColor: "rgb(255,0,0)",
+              fill: false,
+              tension: 0.2,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: {
+              stacked: true,
+            },
+            y: {
+              stacked: true,
+            },
+          },
+        },
+      });
+    } catch (error) {
+      console.log(error.message);
+    }
+  }
+  /**
+   *
+   */
+  function generateSummary(data) {
+    // console.log("logger 2",data["devkumar"]);
+    const keys = [
+      "ldap",
+      "total",
+      "Full Day",
+      "Half Day",
+      "Long Leave",
+      "planned",
+      "unplanned",
+      "actualleaves",
+    ];
+    let array = Object.entries(data);
+    let temp = [];
+    for (let i in array) {
+      array[i][1]["ldap"] = array[i][0];
+      temp.push(array[i][1]);
+    }
+    for (let key of temp) {
+      for (let i of keys) {
+        if (!key.hasOwnProperty(i)) {
+          key[i] = 0;
+        }
+      }
+    }
+    // console.log("generate summary output =>", temp);
+    $("#data-table-one").DataTable({
+      data: temp,
+      order: [[1, "desc"]],
+      //CHANGE THE TABLE HEADINGS BELOW TO MATCH WITH YOUR SELECTED DATA RANGE
+      columns: [
+        {
+          data: "ldap",
+        },
+        {
+          data: "actualleaves",
+        },
+        {
+          data: "total",
+        },
+        {
+          data: "Full Day",
+        },
+        {
+          data: "Half Day",
+        },
+        {
+          data: "Long Leave",
+        },
+        {
+          data: "planned",
+        },
+        {
+          data: "unplanned",
+        },
+      ],
+      dom: "Blfrtip",
+      buttons: ["copy", "csv"],
+      rowCallback: function (row, data, index) {
+        if (data.actualleaves > data.total) {
+          $(row).find("td:eq(2)").css("color", "red");
+          $(row).find("td:eq(1)").css("color", "blue");
+        }
+      },
+    });
+  }
+  /**
+   *
+   */
+  function renderTable(dataArray) {
+    $(document).ready(function () {
+      $("#data-table-two").DataTable({
+        data: dataArray,
+        order: [
+          [6, "asc"],
+          [5, "asc"],
+        ],
+        columns: [
+          {
+            data: "timestamp",
+          },
+          {
+            data: "team",
+          },
+          {
+            data: "ldap",
+          },
+          {
+            data: "from",
+          },
+          {
+            data: "to",
+          },
+          {
+            data: "leavetype",
+          },
+          {
+            data: "status",
+          },
+        ],
+        dom: "Blfrtip",
+        buttons: ["copy", "csv"],
+      });
+    });
+  }
+  /**
+   * @param {Array} timsheetObjArray
+   */
+  function renderTimesheetTable(timsheetObjArray) {
+    $(document).ready(function () {
+      $("#data-table-four").DataTable({
+        data: timsheetObjArray,
+        order: [
+          [0, "desc"],
+          [2, "asc"],
+        ],
+        columns: [
+          {
+            data: "date",
+          },
+          {
+            data: "team",
+          },
+          {
+            data: "ldap",
+          },
+          {
+            data: "activity",
+          },
+          {
+            data: "hour",
+          },
+          {
+            data: "minute",
+          },
+        ],
+        dom: "Blfrtip",
+        buttons: ["copy", "csv"],
+      });
+    });
+  }
+  /**
+   *
+   */
+  function displayUnoToday(dataArray) {
+    if (!dataArray) {
+      return 0;
+    }
+    // console.log("unno today ", dataArray);
+    let dataObject = dataArray.map((item) => ({
+      requestor: item[0],
+      team: item[1],
+      from: item[2],
+      to: item[3],
+      leavetype: item[4],
+      status: item[5],
+    }));
+    // console.log(dataObject);
+
+    $("#data-table-three").DataTable({
+      filter: true,
+      data: dataObject,
+      order: [[2, "desc"]],
+      columns: [
+        {
+          data: "requestor",
+        },
+        {
+          data: "team",
+        },
+        {
+          data: "from",
+        },
+        {
+          data: "to",
+        },
+        {
+          data: "leavetype",
+        },
+        {
+          data: "status",
+        },
+      ],
+    });
+  }
+
+  /**
+   * @param {Array.<object>} array
+   * @returns {Object} totalleavesdata
+   */
+  function finalDataModel(unoArrayObj, timesheetArrayObj) {
+    let timesheetObj = getLeaveData(timesheetArrayObj);
+    let timesheetLdaps = Object.keys(timesheetObj);
+
+    unoArrayObj = unoArrayObj.map((item, index) => {
+      let templdap = item.ldap;
+      return Object.assign(item, {
+        actualleave: timesheetObj[String(templdap)],
+      });
+    });
+    unoArrayObj = unoArrayObj.filter((item) =>
+      timesheetLdaps.includes(item.ldap)
+    );
+    let leaveCount = d3.group(
+      unoArrayObj,
+      (d) => d.ldap,
+      (d) => d.leavetype
+    );
+    let data = graphData(leaveCount);
+    // console.log("UNNO map sanub : ", data["sanub"], timesheetObj["sanub"]);
+
+    let totalleavesdata = getTotalLeavs(data);
+    let ldaps = Object.keys(totalleavesdata);
+    let fulldaydRow = [];
+    let halfdayRow = [];
+    let longRow = [];
+    let totalRow = [];
+    let plannedRow = [];
+    let unplannedRow = [];
+    for (let i of Object.values(totalleavesdata)) {
+      fulldaydRow.push(i["Full Day"]);
+      halfdayRow.push(i["Half Day"]);
+      longRow.push(i["Long Leave"]);
+      totalRow.push(i["total"]);
+      plannedRow.push(i["planned"]);
+      unplannedRow.push(i["unplanned"]);
+    }
+
+    renderTotalGraph(
+      "totalLeaveBarChart",
+      timesheetLdaps,
+      totalleavesdata,
+      timesheetObj
+    );
+    renderBarGraph("barChart", ldaps, fulldaydRow, halfdayRow, longRow);
+    renderPlannedGraph("plannedchart", ldaps, plannedRow, unplannedRow);
+    return totalleavesdata;
+  }
+
+  /**
+   * Main callback function for dsiplaying data on the page.
+   * @param dataArray type Array.
+   */
+  function main(dataArray) {
+    let unnoDataArray = dataArray[0];
+    let timesheetDataArray = dataArray[1];
+    let dataObjArrayLatest = getLatestYearData(unnoDataArray);
+    let dataObjArrayPlanned = populateUnplanned(dataObjArrayLatest);
+    // console.log("showing dataObjArrayPlanned : ", dataObjArrayPlanned[0]);
+    let finalDataObjArray = finalDataModel(
+      dataObjArrayPlanned,
+      timesheetDataArray
+    );
+    // console.log("showing finalDataObjArray : ", finalDataObjArray[0]);
+    // console.log("showing timehsheet data aray :", timesheetDataArray);
+    generateSummary(finalDataObjArray);
+    renderTable(dataObjArrayPlanned);
+    renderTimesheetTable(timesheetDataArray);
+    // console.log("showing filtered data array : ",finalDataObjArray[0]);
+
+    $(function () {
+      let filteredUnnoDataArray = [];
+      let fileteredTimesheetDataArray = [];
+      $('input[name="daterange"]').daterangepicker(
+        {
+          opens: "left",
+        },
+        function (start, end, label) {
+          // console.log("inside callback function");
+          filteredDataObjArray = datefilter(start, end, dataObjArrayPlanned);
+          fileteredTimesheetDataArray = datefilter(
+            start,
+            end,
+            timesheetDataArray
+          );
+
+          // console.log("after date filtering filteredDataObjArray: ", filteredDataObjArray.filter((x) => x.ldap == "sanub"));
+          // console.log("after date filtering fileteredTimesheetDataArray: ", fileteredTimesheetDataArray.filter((x) => x.ldap == "sanub"));
+          try {
+            $("#data-table-two").DataTable().destroy();
+            renderTable(filteredDataObjArray);
+            $("#data-table-four").DataTable().destroy();
+            renderTimesheetTable(fileteredTimesheetDataArray);
+          } catch (error) {
+            console.log(error.message);
+          }
+          try {
+            let oldABarChart = Chart.getChart("barChart");
+            oldABarChart.destroy();
+            let oldTotalChart = Chart.getChart("totalLeaveBarChart");
+            oldTotalChart.destroy();
+            let oldPlannedChart = Chart.getChart("plannedchart");
+            oldPlannedChart.destroy();
+            finalDataModel(filteredDataObjArray, fileteredTimesheetDataArray);
+          } catch (error) {
+            console.log(error.message);
+          }
+
+          try {
+            console.log("logger 9");
+            filteredDataObjArray = finalDataModel(
+              filteredDataObjArray,
+              fileteredTimesheetDataArray
+            );
+            $("#data-table-one").DataTable().destroy();
+            generateSummary(filteredDataObjArray);
+          } catch (error) {
+            console.log(error.message);
+          }
+        }
+      );
+    });
+  }
+</script>

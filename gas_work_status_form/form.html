@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.1/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.1/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- SweetALert -->
+  <script src="https://www.jquery-az.com/javascript/alert/dist/sweetalert-dev.js"></script>
+  <link rel="stylesheet" href="https://www.jquery-az.com/javascript/alert/dist/sweetalert.css">
+
+  <?!= HtmlService.createHtmlOutputFromFile('stylesheet').getContent(); ?>
+</head>
+
+<body>
+
+  <nav class="navbar fixed-top navbar-expand-md navbar-dark bg-primary mb-3 navbar_menu">
+    <div class="flex-row d-flex">
+      <button type="button" class="navbar-toggler mr-2 " data-toggle="offcanvas" title="Toggle responsive left sidebar">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <!-- <a class="navbar-brand" href="#" title="">go/vf-work-status-form</a> -->
+      <a class="navbar-brand" href="http://go/work-status-form" target="_top" title="">go/work-status-form</a>
+    </div>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#collapsingNavbar">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="navbar-collapse collapse navbar_margin" id="collapsingNavbar">
+      <ul class="navbar-nav">
+        <li class="nav-item active">
+          <?var url = getScriptUrl();?><a class="nav-link" href='<?=url?>?page=form' target="_top">Form
+            <span class="sr-only">Form</span></a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link"> | </a>
+        </li>
+        <li class="nav-item">
+          <?var url = getScriptUrl();?><a class="nav-link" href='<?=url?>?page=dashboard' target="_top">Stats</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link"> | </a>
+        </li>
+        <li class="nav-item">
+          <?var url = getScriptUrl();?><a class="nav-link" href='<?=url?>?page=graph' target="_top">Graph</a>
+        </li>
+      </ul>
+    </div>
+  </nav>
+  <!-- <?!= HtmlService.createHtmlOutputFromFile('nav_bar').getContent(); ?> -->
+  <br>
+  <div class="container wsf_head_div">
+    <h1>Work Status Form</h1>
+    <p>
+      Please enter work status details. You can use the add row button
+      to add multiple form entries.
+    </p>
+  </div>
+
+  <div class="container-md mt-3 border">
+    <table lass="table table-borderless" id="outside" style="margin: 12px 0px 0px 0px;">
+      <tr>
+        <td>
+          <table id="tableData" cellpadding="5">
+            <thead>
+              <tr align="center">
+                <th>Date</th>
+                <th>Ldap</th>
+                <th>Site</th>
+                <th>Team</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+          <!-- </div> -->
+            <tbody id="tableToModify">
+              <tr id="rowToClone">
+                <td>
+                  <input type="date" class="form-control" id="date" required="required" style="" />
+                </td>
+                <td>
+                  <input type="text" class="form-control" id="ldap" value="" required="required" disabled />
+                </td>
+                <td>
+                  <select class="form-control" id="site" style="width: 80px;">
+                    <option value="GUR">GUR</option>
+                    <option value="AUS">AUS</option>
+                  </select>
+                </td>
+                <td>
+                  <select class="form-control" id="team">
+                    <option value="" selected disabled hidden>Choose here</option>
+                    <option value="VF Ontology Team">VF Ontology Team</option>
+                    <option value="VF Data Team">VF Data Team</option>
+                    <option value="VF DaaS Monitoring">VF DaaS Monitoring</option>
+                    <option value="VF Lang Team">VF Lang Team</option>
+                  </select>
+                </td>
+                <td>
+                  <select class="form-control" id="status">
+                    <option value="" selected disabled hidden>Choose here</option>
+                  </select>
+                </td>
+                <td>
+                  <!-- <input type="button"  class="btn btn-outline-danger" id="btn" onclick="removeElement(this)" value="Delete">
+                    <i class="fa fa-trash"></i>
+                  </input> -->
+                  <a type="button" class="fa fa-trash-o fa-lg btn btn-outline-danger" id="btn" title="Delete this row" onclick="removeElement(this)" hidden></a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <br />
+          <form>
+            <div class="form-group row"> 
+              <div class="col-xs-2" style="margin-left: 20px;">
+                <input type="number" class="form-control input-sm" id="count" min="1" max="7" hidden/>
+              </div>
+              <div class="col-xs-3" style="margin-left: 7px;">
+                <input id="addrow_btn" type="button" class="btn btn-outline-primary" onclick="cloneRow()" value="Add row" hidden />
+              </div>
+              <!-- <div class="col-xs-3">
+                <input type="button" class="btn btn-outline-info" style="margin-left: 7px;" id="refresh" onclick="reloadPage()" hidden="true" value="Reload Page" target="_top">
+              </div> -->
+              <div class="col-xs-3" style="margin-left: 7px;">
+                <input id="saveForm" class="btn btn-outline-success" onclick="getData()" type="submit" name="submit" value="Submit" hidden />
+              </div>
+              <div id="save_loader" class="loader"></div>
+              <div id="reload_timer" hidden></div>
+            </div>
+          </form>
+          <br />
+          <p id="success" hidden="true">
+            <span style="font-weight: 500; color: blue;">
+              Form submitted successfully!!
+            </span>
+            <a href="http://go/work-status-form" target="_top"> Click</a> for a fresh form.
+          </p>
+          <p>
+            For any feedback and suggestions please use
+            <a href="https://docs.google.com/forms/d/e/1FAIpQLSeTrT6gGS5B3zDNOjCutCiKGfzV6vdSk9tUC8TgK2TU2-axUg/viewform">link</a>
+          </p>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <?!= HtmlService.createHtmlOutputFromFile('javascript').getContent(); ?>
+</body>
+
+</html>

@@ -1,0 +1,278 @@
+<script>
+  const statusItems = [
+    "ACS",
+    "DaaS 10% utilized",
+    "DaaS 20% utilized",
+    "DaaS 30% utilized",
+    "DaaS 40% utilized",
+    "DaaS 50% utilized",
+    "DaaS 60% utilized",
+    "DaaS 70% utilized",
+    "DaaS 80% utilized",
+    "DaaS 90% utilized",
+    "DaaS 100% utilized",
+    "DaaS Legacy",
+    "KLaaS",
+    "Obaas",
+    "QaaS",
+    "SCaaS",
+    "Admin Work",
+    "Absent",
+    "Onboard Training",
+    "Workflow Training",
+    "No Work Available [By Lead]",
+    "Work Pending to be assigned [By Lead]",
+    "Not Operational",
+    "Hume",
+    "DaaS MT",
+    "Not Filled",
+    "Inactive",
+    "Hardware downtime",
+    "Holiday",
+    "Half day",
+    "Weekend",
+  ];
+
+  // var save_loader = document.getElementById("save_loader");
+  var submitButton = document.getElementById("saveForm");
+  var count_addrow = document.getElementById("count");
+  var addrow_btn = document.getElementById("addrow_btn");
+  var del_btn = document.getElementById("btn");
+  var url_path, myTimeout, rel_tmr;  
+  var ldap_glbl;
+
+  function formatDate(date) {
+    var d = new Date(date),
+      month = "" + (d.getMonth() + 1),
+      day = "" + d.getDate(),
+      year = d.getFullYear();
+    if (month.length < 2) month = "0" + month;
+    if (day.length < 2) day = "0" + day;
+    return [year, month, day].join("-");
+  }
+
+  function incrementDate() {
+    var elementDate = document.querySelectorAll("#date");
+    var d = new Date(elementDate[0].value);
+    for (var i = 1; i < elementDate.length; i++) {
+      var copy = d.getDate() + 1;
+      copy = d.setDate(copy);
+      elementDate[i].value = formatDate(copy);
+    }
+  }
+  
+  function cloneRow() {
+    var count = document.getElementById("count").value.trim();
+    var row = document.getElementById("rowToClone"); // find row to copy
+    var table = document.getElementById("tableToModify"); // find table to append to
+    var originalElement = document.querySelectorAll("#tableToModify tr td select");
+    var id = 0;
+
+    if (count==""){
+      count = 1;
+    } else if(count<1){
+      swal("Sorry 😕😕", "No Zeros or Negative please!", "error");
+      document.getElementById("count").value = ""
+    } else if(count>10){
+      swal("Sorry 😕😕", "Only 10 rows at a time!", "error");
+      document.getElementById("count").value = ""
+    }
+    
+    if(count>=1 && count<=10) {
+      del_btn.hidden = false;
+      for (var i = 0; i < count; i++) {
+        var clone = row.cloneNode(true); // copy children too
+        var copy = clone.querySelectorAll("select");
+        for (var j = 0; j < copy.length; j++) {
+          copy[j].value = originalElement[j].value;
+        }
+        id=id+1;
+        clone.id = "clonedRow_" + (id); // change id or other attributes/contents
+        console.log("id : ", id);
+        table.appendChild(clone); // add new row to end of table
+      }
+      incrementDate();
+      document.getElementById("count").value = ""
+      del_btn.hidden = true;
+    }
+  }
+  
+  function getData() {
+    submitButton.setAttribute("disabled", "disabled");
+    submitButton.value = "Please wait...";
+    save_loader.hidden = false;
+    // reload_timer();
+    const data = [];
+    var flag=0;
+    var element = document.querySelectorAll("#tableToModify tr");
+    console.log(element[0].querySelector("td #site").value);
+    var now = Date.now();
+    // console.log(now);
+    for (var i = 0; i < element.length; i++) {
+      var uniq_time = now++;
+      var date = element[i].querySelector("td #date").value;
+      var ldap = element[i].querySelector("td #ldap").value;
+      var site = element[i].querySelector("td #site").value;
+      var team = element[i].querySelector("td #team").value;
+      var status = element[i].querySelector("td #status").value;
+      var user_ldap = ldap_glbl;
+
+      if(date=="" || ldap=="" || site=="" || team=="" || status==""){
+        swal("Sorry, Try Again 😕😕", "Missing / Incorrect Details in Row #" + (i+1), "error");
+        event.preventDefault();
+        $("#saveForm").removeAttr("disabled");
+        submitButton.value = "Submit";
+        save_loader.hidden = true;
+        // flag=0;
+        return;
+      }
+      else{
+        // data.push([date, ldap, site, team, status]);
+        data.push([uniq_time, date, ldap, site, team, status, user_ldap]);
+        // flag = 1;
+      }
+    }
+
+    // if(flag==1) {  
+      // console.log(data);
+      // google.script.run.userClicked(data);
+      google.script.run
+        .withFailureHandler(onFailure)
+        .withSuccessHandler(onSuccess)
+        .userClicked(data);
+
+      var successElem = document.getElementById("success");
+      var refreshButton = document.getElementById("refresh");
+      // console.log(data);
+      function onFailure() {
+        let warning = `<span style="color:red">${error}</span>`;
+        successElem.innerHTML = warning;
+        // save_loader.hidden = true;
+      }
+      function onSuccess(element) {
+        let result = ` Your result calculated from GAS is: ${element}`;
+        successElem.hidden = false;
+        // refreshButton.hidden= false;
+        submitButton.hidden = true;
+        save_loader.hidden = true;
+        swal("Done 😃😃", "Work Status Added Successfully!", "success");
+        // window.location.reload();
+        // reload_timer();
+        // close_timer();
+        google.script.run.withSuccessHandler(onSuccess_remove).removeDuplicates_with_logs();
+      }
+      function onSuccess_remove(element) {
+        // swal("Done 😃😃", "Duplicates Removed Successfully!", "success");
+      }
+    // }
+  }
+
+  // function close_timer() {
+  //   clearTimeout(myTimeout);
+  //   rel_tmr.hidden = true;
+  // }
+
+  //reload_timer
+  // function reload_timer() {
+  //   rel_tmr = document.getElementById("reload_timer");
+  //   const data=[];
+  //   rel_tmr.hidden = false;
+  //   var x=5,y=0;
+  //   myTimeout = setInterval(function() {
+  //     diff = x-y++;
+  //     document.getElementById("reload_timer").innerHTML = diff+" ...";
+  //     // console.log(x + " - " + y + " = " + diff);
+  //     if(diff==0) {
+  //       //  close_timer(); 
+  //       // reloadPage();
+  //     }
+  //   }, 1000);
+  // }
+
+  function jsalert(tr){
+    swal({
+      title: "This will delete the row permanently!",   
+      text: "Do you wanna proceed?",   
+      type: "warning",   
+      showCancelButton: true,   
+      confirmButtonColor: "#DD6B55",   
+      confirmButtonText: "Aww yiss!",   
+      cancelButtonText: "Oh noez!",   
+      closeOnConfirm: false,   
+      closeOnCancel: false }, 
+      function(isConfirm){   
+        if (isConfirm) 
+        {
+          tr.parentNode.removeChild(tr);
+          swal("Removed 🙂🙂", "Row Deleted Successfully!", "success");
+        } 
+        else {     
+          swal("Hurray 😌😌", "Row is not removed!", "info");
+        } 
+      }
+    );
+  }
+
+  function removeElement() {
+    var td = event.target.parentNode;
+    var tr = td.parentNode; // the row to be removed
+    // console.log(tr);
+    
+    // Prompting befote deletion
+    var ret = jsalert(tr);
+    // console.log(ret);
+    // tr.parentNode.removeChild(tr);
+  }
+
+  function populateStatus() {
+    let select = document.getElementById("status");
+    for (let i = 0; i < statusItems.length; i++) {
+      let option = document.createElement("option");
+      option.innerText = statusItems[i];
+      select.appendChild(option);
+    }
+  }
+
+  function updateLdap(ldap) {
+    // submitButton.hidden = true;   //hide submit button if ldap is missing
+
+    let input = document.getElementById("ldap");
+    input.value = ldap;
+    ldap_glbl = ldap;
+
+    //re-checking for if ldap is available in field
+    if(document.getElementById("ldap").value == ldap){
+      count_addrow.hidden = false;
+      addrow_btn.hidden = false;
+      submitButton.hidden = false;
+      save_loader.hidden = true;
+    }
+  }
+
+  function getURL(url){
+    url_path = url;
+    // console.log(url_path);
+  }
+
+  function reloadPage() {
+    // console.log(url_path);
+    // window['location'].href = url_path; //+'?page=form';
+    window.location.reload(true);
+    console.log('reload success..');
+  }
+
+  window.onload = function () {
+    populateStatus();
+    google.script.run.withSuccessHandler(updateLdap).getEmail();
+    google.script.run.withSuccessHandler(getURL).getScriptUrl();
+
+    //get current date in date field
+    var today = new Date();
+    var dd = today.getDate();
+    var mm = today.getMonth() + 1;
+    var yyyy = today.getFullYear();
+    today = yyyy + '-' + mm + '-' + dd;
+    document.getElementById("date").value = formatDate(today); 
+    del_btn.hidden = true;
+  };
+</script>

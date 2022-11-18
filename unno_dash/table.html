@@ -2,102 +2,150 @@
 <html>
 
 <head>
-  <base target="_top">
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <base target="_top" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <script src="https://code.jquery.com/jquery-3.6.1.min.js"
-    integrity="sha256-o88AwQnZB+VDvE9tvIXrMQaPlFFSUTR+nldQm1LuPXQ=" crossorigin="anonymous"></script>
-  <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.12.1/js/jquery.dataTables.min.js">
+  <script type="text/javascript" src="https://code.jquery.com/jquery-3.6.1.min.js"></script>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js">
   </script>
+  <script type="text/javascript" src="https://cdn.datatables.net/1.12.1/js/jquery.dataTables.min.js"></script>
   <script type="text/javascript" src="https://cdn.datatables.net/1.12.1/js/dataTables.bootstrap5.min.js"></script>
+  <script type="text/javascript" src="https://cdn.datatables.net/buttons/2.2.3/js/dataTables.buttons.min.js"></script>
+
+  <script type="text/javascript" src="https://cdn.datatables.net/buttons/2.2.3/js/buttons.html5.min.js"></script>
+
   <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.6.1/d3.min.js"></script>
   <script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
   <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
   <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
-  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.2.0/css/bootstrap.min.css">
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.12.1/css/dataTables.bootstrap5.min.css">
 
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"></script>
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.2.0/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.12.1/css/dataTables.bootstrap5.min.css" />
+  <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.2.3/css/buttons.dataTables.min.css" />
+
+
+  <!-- amchart.js dependency below this line -->
+  <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
+  <script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
+  <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
+
+  <!-- highchart.js dependency below this line -->
+  <script src="https://code.highcharts.com/highcharts.js"></script>
+  <script src="https://code.highcharts.com/modules/exporting.js"></script>
+  <script src="https://code.highcharts.com/modules/export-data.js"></script>
+  <script src="https://code.highcharts.com/modules/accessibility.js"></script>
 
   <?!= HtmlService.createHtmlOutputFromFile('stylesheet').getContent(); ?>
 </head>
 
 <body>
-  <nav class="navbar fixed-top navbar-expand-md navbar-dark bg-primary mb-3 navbar_menu">
-    <div class="flex-row d-flex">
-      <button type="button" class="navbar-toggler mr-2 " data-toggle="offcanvas" title="Toggle responsive left sidebar">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <!-- <a class="navbar-brand" href="#" title="">go/vf-work-status-form</a> -->
-      <a class="navbar-brand" href="" target="_top" title="">UNNO Dashboard V1</a>
-    </div>
-    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#collapsingNavbar">
-      <span class="navbar-toggler-icon"></span>
-    </button>
-    <div class="navbar-collapse collapse navbar_margin" id="collapsingNavbar">
-      <ul class="navbar-nav">
-        <li class="nav-item ">
-          <?var url = getScriptUrl();?><a class="nav-link" href='<?=url?>?page=index' target="_top">
-            <span class="sr-only">Home</span></a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link"> | </a>
-        </li>
-        <li class="nav-item">
-          <?var url = getScriptUrl();?><a class="nav-link active" href='<?=url?>?page=table' target="_top">Raw Data</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link"> | </a>
-        </li>
-        <li class="nav-item">
-          <?var url = getScriptUrl();?><a class="nav-link" href='<?=url?>?page=graph' target="_top">Graph</a>
-        </li>
-      </ul>
+  <nav class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary mb-3 navbar_menu">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="http://go/daas-workstatus-dashboard" target="_top" title="">go/daas-workstatus-dashboard</a>
+
+      <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#collapsingNavbar"
+          aria-controls="navbarSupportedContent"
+          aria-expanded="false"
+          aria-label="Toggle navigation"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+      <div class="collapse navbar-collapse" id="collapsingNavbar">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item">
+            <?var url = getScriptUrl();?><a class="nav-link" href="<?=url?>?page=index" target="_top">
+              <span class="sr-only">Home</span></a>
+          </li>
+          <li class="nav-item">
+            <?var url = getScriptUrl();?><a class="nav-link active" href="<?=url?>?page=table" target="_top">Work
+              Status</a>
+          </li>
+          <li class="nav-item">
+            <?var url = getScriptUrl();?><a class="nav-link disabled" href="<?=url?>?page=graph" target="_top">Graph</a>
+          </li>
+        </ul>
+        <span class="navbar-text">Date filter:</span>
+        <div class="col-xs-3">
+          <form class="container-sm">
+            <input
+                type="text"
+                class="form-control me-2"
+                name="daterange"
+                value=""
+              />
+          </form>
+        </div>
+      </div>
     </div>
   </nav>
+
   <div class="container">
-    <div class="row" style="text-align: center;margin-left: -8%;">
-      <div class="col-md-10" align="middle">
-        <table id="data-table-one" class="table table-striped table-sm table-hover table-bordered">
-          <thead>
-            <tr>
-              <th>Ldap</th>
-              <th>Total</th>
-              <th>Full Day</th>
-              <th>Half Day</th>
-              <th>Long Leave</th>
-            </tr>
-          </thead>
-        </table>
+    <div class="row justify-content-start">
+      <div class="col-md-9" style="width: 90rem">
+        <div id="chartdiv"></div>
       </div>
-      <div class="col-md-2">
-        <span class="label label-primary" style="text-align: left">Date range</span>
-        <input type="text" class="form-control" name="daterange" value="" />
+            <div class="col-md-9" style="text-align: left">
+        <div class="card" style="width: 50rem">
+          <div class="card-header">Bandwidth Table</div>
+          <div class="card-body">
+            <table id="data-table-capacity" class="table table-striped table-sm table-hover table-bordered"
+              style="width: 100%">
+              <thead>
+                <tr>
+                  <th>ldap</th>
+                  <th>Primary score</th>
+                  <th>Secondary score</th>
+                  <th>Reviewer score</th>
+                  <th>Utilization (calculated)</th>
+                   <th>Bandwidth (calculated)</th>
+                  <th>Bandwidth (self)</th>
+                </tr>
+              </thead>
+            </table>
+          </div>
+        </div>
       </div>
-    </div>
-    <br><br>
-    <div class="row" style="text-align: center;margin-left: -8%;">
-      <div class="col-md-10" align="middle">
-        <table id="data-table-two" class="table table-striped table-sm table-hover table-bordered">
-          <thead>
-            <tr>
-              <th>Timestamp</th>
-              <th>Team</th>
-              <th>Ldap</th>
-              <th>From</th>
-              <th>To</th>
-              <th>Leave Type</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-        </table>
+      <div class="col-md-9" style="text-align: left">
+        <div class="card" style="width: 90rem">
+          <div class="card-header">Buganizer Data</div>
+          <div class="card-body">
+            <table id="data-table-buganizer" class="table table-striped table-sm table-hover table-bordered"
+              style="width: 100%">
+              <thead>
+                <tr>
+                  <th>Id</th>
+                  <th>Title</th>
+                  <th>Assignee</th>
+                  <th>Primary</th>
+                  <th>Secondary</th>
+                  <th>Reviewer</th>
+                  <th>Project Status</th>
+                  <th>Status</th>
+                  <th>Target Date</th>
+                  <th>Agent ETA</th>
+                  <th>Priority</th>
+                  <th>Severity</th>
+                  <!-- <th>Last comment</th> -->
+                </tr>
+              </thead>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   </div>
+
+
+  </div>
   <?!= HtmlService.createHtmlOutputFromFile('javascript').getContent(); ?>
+  <?!= HtmlService.createHtmlOutputFromFile('wsscript').getContent(); ?>
 </body>
 
 </html>

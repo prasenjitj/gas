@@ -432,10 +432,10 @@
       ],
       dom: "Blfrtip",
       buttons: ["copy", "csv"],
-      rowCallback: function (row, data, index) {
+      createdRow: function (row, data, index) {
         if (data.actualleaves > data.total) {
-          $(row).find("td:eq(2)").css("color", "red");
-          $(row).find("td:eq(1)").css("color", "blue");
+          $(row).find("td:eq(2)").css("color", "#f44336");
+          $(row).find("td:eq(1)").css("color", "#2979ff");
         }
       },
     });
@@ -444,6 +444,10 @@
    *
    */
   function renderTable(dataArray) {
+    dataArray.map((o,i,arr)=>{
+    o.color = arr.filter(({from})=>from===o.from).length>1 ?'black':'#f44336';
+    return o;
+  });
     $(document).ready(function () {
       $("#data-table-two").DataTable({
         data: dataArray,
@@ -476,6 +480,9 @@
         ],
         dom: "Blfrtip",
         buttons: ["copy", "csv"],
+          "createdRow": function(row, data, dataIndex) {
+              $(row).css("color", data.color);
+          },
       });
     });
   }

@@ -6,9 +6,14 @@
     "libraries": [
       {
         "userSymbol": "utilslib",
-        "version": "4",
+        "version": "0",
         "libraryId": "1Qov-BW2WsBjNqz57Z4mvMtMQdSQUieVbJB0vMi7QSkpJ0cGRBxjewm9N",
-        "developmentMode": false
+        "developmentMode": true
+      },
+      {
+        "userSymbol": "Wisent",
+        "version": "35",
+        "libraryId": "1uZZEsMwGTVbtG0WPbBYJXuw7iNHe2arLFFynEloCuHbpNnnEhnb0AHd_"
       }
     ]
   },

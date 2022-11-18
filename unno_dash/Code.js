@@ -1,7 +1,53 @@
 const SPREADSHEET_KEY = "1Ee0aE13LN01JOcI9FS349yYf6iozArwsvvsKl0lxdDg";
+const WORKSTATUSSHEET_KEY = "1lic2QroDbmdQhx462YQ-RiguLlF378C05V4iPYsKIXo";
 const UNNO_RESPONSE_RANGE = "Response!A2:P";
 const UNNO_TODAY_RANGE = "OOO Today!A2:F";
 const FEEDBACK_RANGE = "feedback!A2:B";
+const PTB_RANGE = "work status (6251749)!A2:P";
+const BANDWIDTH_RANGE = "self_utilisation!A2:B";
+const LDAPS = ["abhinavrai",
+  "gargabhishek",
+  "pratapas",
+  "akhilbhatnagar",
+  "aishwarkar",
+  "anoopk",
+  "manupkumar",
+  "anushribora",
+  "apurvsharma",
+  "mishashish",
+  "bhamidipatim",
+  "debleen",
+  "devkumar",
+  "erai",
+  "vermagau",
+  "kumarigeeta",
+  "chettiyarh",
+  "hkgupta",
+  "jaisrivastava",
+  "lokeshboddeda",
+  "sharmamans",
+  "chauhannishant",
+  "rajeshya",
+  "rashmiranj",
+  "rrrekha",
+  "saxenarishabh",
+  "jaritika",
+  "bhatts",
+  "sanjeevsaini",
+  "sanub",
+  "dhallsarthak",
+  "satishrawat",
+  "sayyadz",
+  "shalinigusain",
+  "srshekhar",
+  "shrikantverma",
+  "sridharnagar",
+  "sumitkmishra",
+  "kholiya",
+  "tanmaysaxena",
+  "ujjawalb",
+  "bethay",
+  "yasmeenp"];
 
 /**
  *
@@ -139,4 +185,50 @@ function mainCallback() {
   console.log(unnoData[0], "  ", timesheetData[0]);
 
   return [unnoData, timesheetData];
+}
+
+
+function getBugsArray() {
+  let key = "hotlistid:2079536 status:open";
+  // let key = "hotlistid:2079536 assignee:(akhilbhatnagar@google.com | erai@google.com | jaritika@google.com | sanub@google.com) status:open";
+  let bugArray = utilslib.getBugs(key);
+  console.log(bugArray);
+  return [bugArray, LDAPS];
+}
+
+
+function getBugsData() {
+  // const wisent = Wisent.wisent;
+  // wisent.automation();
+  let data = utilslib.getSheetData(PTB_RANGE, WORKSTATUSSHEET_KEY);
+  data =data.map((item) => ({
+      id: item[0],
+      title: item[1],
+      projectStatus: item[2],
+      otd: item[3],
+      eta: item[4],
+      vfOrg: item[5],
+      primary: item[6],
+      secondary: item[7],
+      reviewer: item[8],
+      project: item[9],
+      assignee: item[10],
+      priority: item[11],
+      severity: item[12],
+      type: item[13],
+      status: item[14],
+      note: item[15],
+    }));
+
+  return [data,LDAPS,getBandwidthData()];
+}
+
+function getBandwidthData() {
+  let data = utilslib.getSheetData(BANDWIDTH_RANGE, WORKSTATUSSHEET_KEY);
+  let obj ={};
+  data.forEach((item) => (
+    obj[item[0]] = item[1]
+  ));
+ return obj;
+
 }

@@ -1,0 +1,437 @@
+<script>
+  google.script.run.withSuccessHandler(processBugsArray).getBugsData();
+  google.script.run.withSuccessHandler(displayBugData).getBugsData();
+
+  const complexity = {
+    P0: 2.5,
+    P1: 1,
+    P2: 0.5,
+    P3: 0.25,
+    S0: 2.5,
+    S1: 1,
+    S2: 0.5,
+    S3: 0.25,
+  };
+
+  function mergeBandwidthData(bandwidthData, capArray) {
+    capArray.forEach(
+      (object) => (object.bandwidth = bandwidthData[object.ldap])
+    );
+    console.log("cap array : ", capArray);
+    return capArray;
+  }
+
+  function setScore(obj, key, valueObj, flag, scoreKey) {
+    let hasValue = valueObj[flag];
+    if (hasValue) {
+      obj.ldap = key;
+      let score = 0;
+      for (let i of hasValue) {
+        score += complexity[i.priority];
+        obj[scoreKey] = score;
+      }
+    } else {
+      obj.ldap = key;
+      obj[scoreKey] = 0;
+    }
+  }
+
+  function getCapacity(data) {
+    let array = [];
+    for (let [key, value] of Object.entries(data)) {
+      let tempObj = {};
+      setScore(tempObj, key, value, "primary", "pScore");
+      setScore(tempObj, key, value, "secondary", "sScore");
+      setScore(tempObj, key, value, "reviewer", "rScore");
+      // setScore(tempObj,key, value,'assignee','aScore');
+      if (Object.keys(tempObj).length) {
+        let total = 0;
+        if (tempObj.pScore) {
+          total += tempObj.pScore;
+        }
+        if (tempObj.sScore) {
+          total += tempObj.sScore;
+        }
+        if (tempObj.rScore) {
+          total += tempObj.rScore;
+        }
+        tempObj.total = total;
+        tempObj.calculatedbandwidth = 10 - total;
+      }
+      array.push(tempObj);
+    }
+    return array;
+  }
+
+  function getCategories(data) {
+    let list = [];
+    data = data.map((item) => {
+      list.push({ category: item.category });
+    });
+    return list;
+  }
+
+  function getDatesObj(data) {
+    let obj = {};
+    for (let [key, value] of Object.entries(data)) {
+      let tempArray = [];
+      etaArrayBuilder(obj, key, value, tempArray, "assignee");
+      etaArrayBuilder(obj, key, value, tempArray, "primary");
+      etaArrayBuilder(obj, key, value, tempArray, "secondary");
+      etaArrayBuilder(obj, key, value, tempArray, "reviewer");
+    }
+    // console.log(obj);
+    return getFinalObj(obj);
+  }
+
+  function etaArrayBuilder(newObj, key, object, tempArray, flag) {
+    let hasFlag = object[flag];
+    if (hasFlag) {
+      let array = object[flag];
+      for (let item of array) {
+        tempArray.push(item.eta);
+        newObj[key] = tempArray;
+      }
+    }
+  }
+
+  function getFinalObj(datesObj) {
+    let dataArray = new Array();
+    for (let [key, value] of Object.entries(datesObj)) {
+      value = value.map((date) => new Date(date));
+      let maxDate = moment(new Date(Math.max.apply(null, value))).format(
+        "YYYY-MM-DD"
+      );
+      // let minDate = moment(new Date(Math.min.apply(null, value))).format('YYYY-MM-DD');
+      let minDate = moment(new Date()).format("YYYY-MM-DD");
+      dataArray.push({
+        toDate: maxDate,
+        fromDate: minDate,
+        category: key,
+      });
+    }
+    // console.log('dataarray =>', dataArray);
+    return dataArray;
+  }
+
+  function processBugsArray(bugs) {
+    let bugsArray = bugs[0];
+    let ldaps = bugs[1];
+    let bandwidthData = bugs[2];
+    // console.log("ldaps :", ldaps[13]);
+    // console.log(bugsArray);
+    bugsArray.forEach((item) => {
+      // console.log(item);
+      if (item.assignee != "") {
+        // console.log("assignee :", item.assignee );
+        item.assignee = item.assignee.replace("@google.com", "");
+      }
+    });
+    let assigneeMap = Object.fromEntries(
+      d3.group(bugsArray, (b) => b.assignee)
+    );
+    let primaryMap = Object.fromEntries(d3.group(bugsArray, (b) => b.primary));
+    let secondaryMap = Object.fromEntries(
+      d3.group(bugsArray, (b) => b.secondary)
+    );
+    let reviewerMap = Object.fromEntries(
+      d3.group(bugsArray, (b) => b.reviewer)
+    );
+    let finalArray = [];
+    // console.log(assigneeMap, primaryMap, secondaryMap, reviewerMap);
+    // console.log(assigneeMap.erai)
+    let temp = {};
+    ldaps.map((item) => {
+      temp[item] = {
+        assignee: assigneeMap[item],
+        primary: primaryMap[item],
+        secondary: secondaryMap[item],
+        reviewer: reviewerMap[item],
+      };
+    });
+    // console.log('temp=>',temp);
+    let dataArray = getDatesObj(temp);
+    let capArray = getCapacity(temp);
+    capArray = mergeBandwidthData(bandwidthData, capArray);
+    displayCapacity(capArray);
+    addSeries(dataArray);
+  }
+
+  function addSeries(dataArray) {
+    // console.log('data => ',dataArray);
+
+    // Create root element
+    // https://www.amcharts.com/docs/v5/getting-started/#Root_element
+    var root = am5.Root.new("chartdiv");
+    root.dateFormatter.setAll({
+      dateFormat: "yyyy-MM-dd",
+      dateFields: ["valueX", "openValueX"],
+    });
+
+    // Set themes
+    // https://www.amcharts.com/docs/v5/concepts/themes/
+    root.setThemes([am5themes_Animated.new(root)]);
+
+    // Create chart
+    // https://www.amcharts.com/docs/v5/charts/xy-chart/
+    var chart = root.container.children.push(
+      am5xy.XYChart.new(root, {
+        panX: false,
+        panY: false,
+        wheelX: "panX",
+        wheelY: "zoomX",
+        layout: root.verticalLayout,
+      })
+    );
+
+    // Add legend
+    // https://www.amcharts.com/docs/v5/charts/xy-chart/legend-xy-series/
+    var legend = chart.children.push(
+      am5.Legend.new(root, {
+        centerX: am5.p50,
+        x: am5.p50,
+      })
+    );
+
+    var colors = chart.get("colors");
+    var colorCount = 0;
+    let data = [];
+    dataArray.map((item) => {
+      item.columnSettings = {
+        fill: am5.Color.brighten(colors.getIndex(colorCount++), 0 + 0.2),
+      };
+      data.push(item);
+    });
+
+    // Create axes
+    // https://www.amcharts.com/docs/v5/charts/xy-chart/axes/
+    var yAxis = chart.yAxes.push(
+      am5xy.CategoryAxis.new(root, {
+        categoryField: "category",
+        renderer: am5xy.AxisRendererY.new(root, { inversed: true }),
+        tooltip: am5.Tooltip.new(root, {
+          themeTags: ["axis"],
+          animationDuration: 200,
+        }),
+      })
+    );
+
+    yAxis.data.setAll(getCategories(data));
+
+    var xAxis = chart.xAxes.push(
+      am5xy.DateAxis.new(root, {
+        baseInterval: { timeUnit: "day", count: 1 },
+        renderer: am5xy.AxisRendererX.new(root, {}),
+      })
+    );
+
+    // Add series
+    // https://www.amcharts.com/docs/v5/charts/xy-chart/series/
+    var series = chart.series.push(
+      am5xy.ColumnSeries.new(root, {
+        xAxis: xAxis,
+        yAxis: yAxis,
+        openValueXField: "fromDate",
+        valueXField: "toDate",
+        categoryYField: "category",
+        sequencedInterpolation: true,
+      })
+    );
+
+    series.columns.template.setAll({
+      height: 20,
+      templateField: "columnSettings",
+      strokeOpacity: 0,
+      tooltipText:
+        "{category}: {openValueX.formatDate('yyyy-MM-dd')} - {valueX.formatDate('yyyy-MM-dd')}",
+    });
+
+    series.data.processor = am5.DataProcessor.new(root, {
+      dateFields: ["fromDate", "toDate"],
+      dateFormat: "yyyy-MM-dd",
+    });
+    series.data.setAll(dataArray);
+
+    // Add scrollbars
+    // chart.set("scrollbarX", am5.Scrollbar.new(root, { orientation: "horizontal",}));
+    chart.set(
+      "scrollbarY",
+      am5.Scrollbar.new(root, { orientation: "vertical" })
+    );
+
+    // Make stuff animate on load
+    // https://www.amcharts.com/docs/v5/concepts/animations/
+    series.appear();
+    chart.appear(1000, 100);
+  }
+
+  function displayBugData(dataArray) {
+    let data = dataArray[0];
+    if (!data) {
+      return 0;
+    }
+    $("#data-table-buganizer").DataTable({
+      filter: true,
+      data: data,
+      order: [[2, "asc"]],
+      columns: [
+        {
+          data: "id",
+          render: function (data, type, row) {
+            return '<a href="http://b/' + data + '">b/' + data + "</a>";
+          },
+        },
+        {
+          data: "title",
+        },
+        {
+          data: "assignee",
+        },
+        {
+          data: "primary",
+        },
+        {
+          data: "secondary",
+        },
+        {
+          data: "reviewer",
+        },
+        {
+          data: "projectStatus",
+        },
+        {
+          data: "status",
+        },
+        {
+          data: "otd",
+          render: DataTable.render.datetime(
+            "MM/DD/YYYY",
+            "YYYY-MM-DD",
+            "en-US"
+          ),
+          // function(data) {
+          //   console.log("otd :", data);
+          //   if(data != "") {
+          //     return moment(data).format("YYYY-MM-DD")
+          //   } return "";
+          // },
+        },
+        {
+          data: "eta",
+          render: DataTable.render.datetime(
+            "MM/DD/YYYY",
+            "YYYY-MM-DD",
+            "en-US"
+          ),
+          // function(data) {
+          //   console.log("eta :", data);
+          //   if(data != "") {
+          //     return moment(data).format("YYYY-MM-DD")
+          //   } return "";
+          // }
+        },
+        {
+          data: "priority",
+        },
+        {
+          data: "severity",
+        },
+        // {
+        //   data: "note",
+        // },
+      ],
+    });
+  }
+
+  function displayCapacity(dataArray) {
+    let data = dataArray;
+    if (!data) {
+      return 0;
+    }
+    let table = $("#data-table-capacity").DataTable({
+      filter: true,
+      data: data,
+      order: [[4, "desc"]],
+      columns: [
+        {
+          data: "ldap",
+        },
+        {
+          data: "pScore",
+        },
+        {
+          data: "sScore",
+        },
+        {
+          data: "rScore",
+        },
+        {
+          data: "total",
+          render: function (data) {
+            return (Number(data) * 10).toString().concat("", "%");
+          },
+        },
+        {
+          data: "calculatedbandwidth",
+          render: function (data) {
+            return (Number(data) * 10).toString().concat("", "%");
+          },
+        },
+        {
+          data: "bandwidth",
+        },
+      ],
+    });
+
+        // Create the chart with initial data
+    let container = $('<div/>').insertBefore(table.table().container());
+ 
+    let chart = Highcharts.chart(container[0], {
+        chart: {
+            type: 'pie',
+        },
+        title: {
+            text: 'Bandwidth Per Ldap',
+        },
+        tooltip: {
+        pointFormat: '<b>{point.name}</b>: <b>{point.y}%</b>'
+        },
+        accessibility: {
+          point: {
+              valueSuffix: '%'
+          }
+    },
+        series: [
+            {
+                data: chartData(table),
+            },
+        ],
+    });
+ 
+    // On each draw, update the data in the chart
+    table.on('draw', function () {
+        chart.series[0].setData(chartData(table));
+    });
+  }
+
+  function chartData(table) {
+    let counts = {};
+    // Count the number of entries for each position
+    table
+      .rows()
+      .data()
+      .each(function (val) {
+        //  console.log("chart value :", val.ldap,val.calculatedbandwidth);
+        counts[val.ldap] = (Number(val.calculatedbandwidth) * 10);
+      });
+      console.log("chart value :", counts);
+
+    // And map it to the format highcharts uses
+    return $.map(counts, function (val, key) {
+      return {
+        name: key,
+        y: val,
+      };
+    });
+  }
+</script>

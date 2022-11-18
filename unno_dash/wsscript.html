@@ -158,11 +158,11 @@
   }
 
   function addSeries(dataArray) {
-    // console.log('data => ',dataArray);
+    console.log('data => ',dataArray);
 
     // Create root element
     // https://www.amcharts.com/docs/v5/getting-started/#Root_element
-    var root = am5.Root.new("chartdiv");
+    var root = am5.Root.new("timechart");
     root.dateFormatter.setAll({
       dateFormat: "yyyy-MM-dd",
       dateFields: ["valueX", "openValueX"],
@@ -308,13 +308,7 @@
             "MM/DD/YYYY",
             "YYYY-MM-DD",
             "en-US"
-          ),
-          // function(data) {
-          //   console.log("otd :", data);
-          //   if(data != "") {
-          //     return moment(data).format("YYYY-MM-DD")
-          //   } return "";
-          // },
+          )
         },
         {
           data: "eta",
@@ -383,29 +377,38 @@
       ],
     });
 
-        // Create the chart with initial data
-    let container = $('<div/>').insertBefore(table.table().container());
- 
-    let chart = Highcharts.chart(container[0], {
+    // Create the chart with initial data 
+    let chart = Highcharts.chart('piechart', {
         chart: {
             type: 'pie',
         },
         title: {
-            text: 'Bandwidth Per Ldap',
+            text: 'Bandwidth Per ldap',
         },
         tooltip: {
-        pointFormat: '<b>{point.name}</b>: <b>{point.y}%</b>'
+        pointFormat: '<b>{series.name}</b>: <b>{point.y:.1f}%</b>'
         },
         accessibility: {
           point: {
               valueSuffix: '%'
           }
-    },
-        series: [
-            {
-                data: chartData(table),
+        },
+        plotOptions: {
+          pie: {
+            allowPointSelect: true,
+            cursor: 'pointer',
+            dataLabels: {
+              enabled: true,
+              format: '<b>{point.name}</b>: {point.y:.1f} %'
             },
-        ],
+            // showInLegend: true
+          }
+        },
+        series: [{
+          name: 'Bandwidth',
+          // colorByPoint: true,
+          data: chartData(table),
+          }],
     });
  
     // On each draw, update the data in the chart

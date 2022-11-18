@@ -3,32 +3,39 @@
     padding-top: 5%;
   }
 
+  .container-md {
+    padding-top: 5%;
+  }
+
   .card {
     margin-bottom: 30px;
   }
 
-  #datatable {
-
-    td,
-    th {
-      vertical-align: middle;
-    }
-  }
-
-  table.dataTable tbody tr:nth-child(even):hover td  {
+  table.dataTable tbody tr:nth-child(even):hover td {
     background-color: #eeeeee;
     color: rgb(51, 102, 255);
     cursor: pointer;
+    vertical-align: middle;
   }
 
-  table.dataTable tbody tr:nth-child(odd):hover td  {
+  table.dataTable tbody tr:nth-child(odd):hover td {
     background-color: #eeeeee;
     color: rgb(51, 102, 255);
     cursor: pointer;
+    vertical-align: middle;
+  }
+  table.dataTable thead th {
+    text-align: center;
+    vertical-align: middle;
   }
 
 
   #chartdiv {
+    width: 100%;
+    height: 500px;
+  }
+
+  #timechart {
     width: 100%;
     height: 500px;
   }

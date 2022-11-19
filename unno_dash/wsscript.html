@@ -2,48 +2,51 @@
   google.script.run.withSuccessHandler(processBugsArray).getBugsData();
   google.script.run.withSuccessHandler(displayBugData).getBugsData();
 
+  /**
+   * Main callback function, with no rturns
+   * @param {Array} bugs Ann array of bugs object.
+   */
   function processBugsArray(bugs) {
-      let bugsArray = bugs[0];
-      let ldaps = bugs[1];
-      let bandwidthData = bugs[2];
-      // console.log(bugsArray);
-      bugsArray.forEach((item) => {
-        // console.log(item);
-        if (item.assignee != "") {
-          // console.log("assignee :", item.assignee );
-          item.assignee = item.assignee.replace("@google.com", "");
-        }
-      });
-      let assigneeMap = Object.fromEntries(
-        d3.group(bugsArray, (b) => b.assignee)
-      );
-      let primaryMap = Object.fromEntries(d3.group(bugsArray, (b) => b.primary));
-      let secondaryMap = Object.fromEntries(
-        d3.group(bugsArray, (b) => b.secondary)
-      );
-      let reviewerMap = Object.fromEntries(
-        d3.group(bugsArray, (b) => b.reviewer)
-      );
-      let finalArray = [];
-      // console.log(assigneeMap, primaryMap, secondaryMap, reviewerMap);
-      // console.log(assigneeMap.erai)
-      let temp = {};
-      ldaps.map((item) => {
-        temp[item] = {
-          assignee: assigneeMap[item],
-          primary: primaryMap[item],
-          secondary: secondaryMap[item],
-          reviewer: reviewerMap[item],
-        };
-      });
-      // console.log('temp=>',temp);
-      let dataArray = getDatesObj(temp);
-      // let capArray = getCapacity(temp);
-      // capArray = mergeBandwidthData(bandwidthData, capArray);
-      // displayCapacity(capArray);
-      addSeries(dataArray);
-    }
-
+    let bugsArray = bugs[0];
+    let ldaps = bugs[1];
+    let bandwidthData = bugs[2];
+    // console.log(bugsArray);
+    bugsArray.forEach((item) => {
+      // console.log(item);
+      if (item.assignee != "") {
+        // console.log("assignee :", item.assignee );
+        item.assignee = item.assignee.replace("@google.com", "");
+      }
+    });
+    let assigneeMap = Object.fromEntries(
+      d3.group(bugsArray, (b) => b.assignee)
+    );
+    let primaryMap = Object.fromEntries(d3.group(bugsArray, (b) => b.primary));
+    let secondaryMap = Object.fromEntries(
+      d3.group(bugsArray, (b) => b.secondary)
+    );
+    let reviewerMap = Object.fromEntries(
+      d3.group(bugsArray, (b) => b.reviewer)
+    );
+    let finalArray = [];
+    // console.log(assigneeMap, primaryMap, secondaryMap, reviewerMap);
+    // console.log(assigneeMap.erai)
+    let temp = {};
+    ldaps.map((item) => {
+      temp[item] = {
+        assignee: assigneeMap[item],
+        primary: primaryMap[item],
+        secondary: secondaryMap[item],
+        reviewer: reviewerMap[item],
+      };
+    });
+    // console.log('temp=>',temp);
+    let dataArray = getDatesObj(temp);
+    // let capArray = getCapacity(temp);
+    // capArray = mergeBandwidthData(bandwidthData, capArray);
+    // displayCapacity(capArray);
+    addSeries(dataArray);
+  }
 
   function getCategories(data) {
     let list = [];
@@ -96,8 +99,6 @@
     return dataArray;
   }
 
-  
-
   function addSeries(dataArray) {
     // console.log('data => ', dataArray);
 
@@ -125,16 +126,18 @@
       })
     );
 
-    chart.children.unshift(am5.Label.new(root, {
-      text: "Work status per ldap",
-      fontSize: 24,
-      fontWeight: "400",
-      textAlign: "left",
-      x: am5.percent(50),
-      centerX: am5.percent(50),
-      paddingTop: 0,
-      paddingBottom: 10
-    }));
+    chart.children.unshift(
+      am5.Label.new(root, {
+        text: "Work status per ldap",
+        fontSize: 24,
+        fontWeight: "400",
+        textAlign: "left",
+        x: am5.percent(50),
+        centerX: am5.percent(50),
+        paddingTop: 0,
+        paddingBottom: 10,
+      })
+    );
 
     // Add legend
     // https://www.amcharts.com/docs/v5/charts/xy-chart/legend-xy-series/
@@ -202,7 +205,7 @@
     //   });
     // });
 
-    series.bullets.push(function() {
+    series.bullets.push(function () {
       return am5.Bullet.new(root, {
         locationX: 1,
         locationY: 0.5,
@@ -211,8 +214,8 @@
           centerY: am5.p50,
           text: "{valueX}",
           fill: am5.color(0xffffff),
-          populateText: true
-        })
+          populateText: true,
+        }),
       });
     });
 
@@ -287,7 +290,7 @@
             "MM/DD/YYYY",
             "YYYY-MM-DD",
             "en-US"
-          )
+          ),
         },
         {
           data: "eta",

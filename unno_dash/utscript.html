@@ -54,55 +54,62 @@
     let teamArray = teamUtisation(capArray);
     let bandArray = getBndCount(capArray);
     displayCapacity(capArray);
-    renderTeamChart(teamArray,'teampiechart','pie', 'Team Utilisation', 'Utilisation');
-    renderDistChart(bandArray,'bwtrendchart','spline', 'Bandwidth Distribution', 'Distribution');
+    renderTeamChart(
+      teamArray,
+      "teampiechart",
+      "pie",
+      "Team Utilisation",
+      "Utilisation"
+    );
+    renderDistChart(
+      bandArray,
+      "bwtrendchart",
+      "spline",
+      "Bandwidth Distribution",
+      "Distribution"
+    );
   }
 
-
   function getBndCount(data) {
-      let obj = {};
-      data.forEach((item) => {
-          console.log(item.calculatedbandwidth * 10);
-          if (obj.hasOwnProperty(item.calculatedbandwidth * 10)) {
-              obj[item.calculatedbandwidth * 10] = obj[item.calculatedbandwidth * 10]+1;
-          } else {
-              obj[item.calculatedbandwidth * 10] = 1;
-          }
-      });
-      let array = [];
-      for (let [key, value] of Object.entries(obj)) {
-          array.push(
-              {
-                  name: key+'%',
-                  y: value
-              }
-          )
+    let obj = {};
+    data.forEach((item) => {
+      console.log(item.calculatedbandwidth * 10);
+      if (obj.hasOwnProperty(item.calculatedbandwidth * 10)) {
+        obj[item.calculatedbandwidth * 10] =
+          obj[item.calculatedbandwidth * 10] + 1;
+      } else {
+        obj[item.calculatedbandwidth * 10] = 1;
       }
-      return array
+    });
+    let array = [];
+    for (let [key, value] of Object.entries(obj)) {
+      array.push({
+        name: key + "%",
+        y: value,
+      });
+    }
+    return array;
   }
 
   function teamUtisation(data) {
-
     let teamUtObj = {};
     let sum = 0;
     let count = 0;
     data.forEach((item) => {
-        sum += item.total;
-        count++;
+      sum += item.total;
+      count++;
     });
     teamUtObj.utilisation = sum;
-    teamUtObj.bandwidth = (count * 10) - sum;
+    teamUtObj.bandwidth = count * 10 - sum;
     let array = [];
     for (let [key, value] of Object.entries(teamUtObj)) {
-        array.push(
-            {
-                name: key,
-                y: value
-            }
-        )
-      }
-    return array;
+      array.push({
+        name: key,
+        y: value,
+      });
     }
+    return array;
+  }
 
   function mergeBandwidthData(bandwidthData, capArray) {
     capArray.forEach(
@@ -205,7 +212,6 @@
     return dataArray;
   }
 
-  
   function displayBugData(dataArray) {
     let data = dataArray[0];
     if (!data) {
@@ -249,7 +255,7 @@
             "MM/DD/YYYY",
             "YYYY-MM-DD",
             "en-US"
-          )
+          ),
         },
         {
           data: "eta",
@@ -318,110 +324,123 @@
       ],
     });
 
-    // Create the chart with initial data 
-    let chart = Highcharts.chart('piechart', {
+    // Create the chart with initial data
+    let chart = Highcharts.chart("piechart", {
       chart: {
-        type: 'pie',
+        type: "pie",
       },
       title: {
-        text: 'Uitlisation Per ldap based on calculation',
+        text: "Uitlisation Per ldap based on calculation",
       },
       subtitle: {
-        text: 'Source: Buganizer'
+        text: "Source: Buganizer",
       },
       tooltip: {
-        pointFormat: '<b>{series.name}</b>: <b>{point.y:.1f}%</b>'
+        pointFormat: "<b>{series.name}</b>: <b>{point.y:.1f}%</b>",
       },
       accessibility: {
         point: {
-          valueSuffix: '%'
-        }
+          valueSuffix: "%",
+        },
       },
       plotOptions: {
         pie: {
           allowPointSelect: true,
-          cursor: 'pointer',
+          cursor: "pointer",
           dataLabels: {
             enabled: true,
-            format: '<b>{point.name}</b>: {point.y:.1f} %'
+            format: "<b>{point.name}</b>: {point.y:.1f} %",
           },
           // showInLegend: true
-        }
+        },
       },
-      series: [{
-        name: 'Utilisation',
-        // colorByPoint: true,
-        data: chartData(table),
-      }],
+      series: [
+        {
+          name: "Utilisation",
+          // colorByPoint: true,
+          data: chartData(table),
+        },
+      ],
     });
 
     // On each draw, update the data in the chart
-    table.on('draw', function () {
+    table.on("draw", function () {
       chart.series[0].setData(chartData(table));
     });
 
-    let barchart = Highcharts.chart('barchart', {
+    let barchart = Highcharts.chart("barchart", {
       chart: {
-        type: 'column'
+        type: "column",
       },
       title: {
-        text: 'Bandwidth available per ldap based on calculations'
+        text: "Bandwidth available per ldap based on calculations",
       },
       subtitle: {
-        text: 'Source: Buganizer'
+        text: "Source: Buganizer",
       },
       xAxis: {
-        type: 'category',
+        type: "category",
         labels: {
           rotation: -45,
-        }
+        },
       },
       yAxis: {
         min: 0,
         title: {
-          text: 'Bandwidth (%)'
-        }
+          text: "Bandwidth (%)",
+        },
       },
       legend: {
-        enabled: false
+        enabled: false,
       },
       tooltip: {
-        pointFormat: '{series.name}: <b>{point.y:.1f} %</b>'
+        pointFormat: "{series.name}: <b>{point.y:.1f} %</b>",
       },
-      series: [{
-        name: 'Bandwidth',
-        colorByPoint: true,
-        data: getbarData(table,'calculatedbandwidth'),
-        dataLabels: {
-          enabled: true,
-          rotation: -90,
-          color: '#FFFFFF',
-          align: 'right',
-          format: '{point.y:.1f}', // one decimal
-          y: 10, // 10 pixels down from the top
-          style: {
-            fontSize: '10px',
-            fontFamily: 'Verdana, sans-serif'
-          }
-        }
-      }]
+      series: [
+        {
+          name: "Bandwidth",
+          colorByPoint: true,
+          data: getbarData(table, "calculatedbandwidth"),
+          dataLabels: {
+            enabled: true,
+            rotation: -90,
+            color: "#FFFFFF",
+            align: "right",
+            format: "{point.y:.1f}", // one decimal
+            y: 10, // 10 pixels down from the top
+            style: {
+              fontSize: "10px",
+              fontFamily: "Verdana, sans-serif",
+            },
+          },
+        },
+      ],
     });
 
     // On each draw, update the data in the chart
-    table.on('draw', function () {
-      barchart.series[0].setData(getbarData(table,'calculatedbandwidth'));
+    table.on("draw", function () {
+      barchart.series[0].setData(getbarData(table, "calculatedbandwidth"));
     });
 
-    let splineChart = renderLdapDistChart(table, 'ldapdistchart', 'areaspline', 'Ldap Utilisation Distribution', 'Bandwidth');
+    let splineChart = renderLdapDistChart(
+      table,
+      "ldapdistchart",
+      "areaspline",
+      "Ldap Utilisation Distribution",
+      "Bandwidth"
+    );
   }
 
   function chartData(table) {
     let counts = {};
     // Count the number of entries for each position
-    table.rows().data().each(function (val) {
-      //  console.log("chart value :", val.ldap,val.calculatedbandwidth);
-      counts[val.ldap] = (Number(val.total) * 10);
-    });
+    table
+      .rows()
+      .data()
+      .each(function (val) {
+        //  console.log("chart value :", val.ldap,val.calculatedbandwidth);
+        counts[val.ldap] = Number(val.total) * 10;
+      });
     // console.log("chart value :", counts);
 
     // And map it to the format highcharts uses
@@ -433,20 +452,20 @@
     });
   }
 
-  function getbarData(table,key) {
+  function getbarData(table, key) {
     let array = [];
-    table.rows().data().each(function (val) {
-      array.push([val.ldap, (Number(val[key]) * 10)])
-    });
-    console.log('array ->', array);
+    table
+      .rows()
+      .data()
+      .each(function (val) {
+        array.push([val.ldap, Number(val[key]) * 10]);
+      });
+    console.log("array ->", array);
     return array;
-
   }
 
-
   function renderTeamChart(data, id, ctype, titletext, sname) {
-
-    // Create the chart with initial data 
+    // Create the chart with initial data
     let chart = Highcharts.chart(id, {
       chart: {
         type: ctype,
@@ -455,38 +474,39 @@
         text: titletext,
       },
       subtitle: {
-        text: 'Source: Buganizer'
+        text: "Source: Buganizer",
       },
       tooltip: {
-        pointFormat: '<b>{point.name}</b>: <b>{point.y:.1f}%</b>'
-        },
+        pointFormat: "<b>{point.name}</b>: <b>{point.y:.1f}%</b>",
+      },
       accessibility: {
         point: {
-          valueSuffix: '%'
-        }
+          valueSuffix: "%",
+        },
       },
       plotOptions: {
         pie: {
           allowPointSelect: true,
-          cursor: 'pointer',
+          cursor: "pointer",
           dataLabels: {
             enabled: true,
-            format: '<b>{point.name}</b>: {point.y:.1f} %'
+            format: "<b>{point.name}</b>: {point.y:.1f} %",
           },
           // showInLegend: true
-        }
+        },
       },
-      series: [{
-        name: sname,
-        colorByPoint: true,
-        data: data,
-      }],
+      series: [
+        {
+          name: sname,
+          colorByPoint: true,
+          data: data,
+        },
+      ],
     });
   }
 
   function renderDistChart(data, id, ctype, titletext, sname) {
-
-    // Create the chart with initial data 
+    // Create the chart with initial data
     let chart = Highcharts.chart(id, {
       chart: {
         type: ctype,
@@ -495,53 +515,54 @@
         text: titletext,
       },
       subtitle: {
-        text: 'Source: Buganizer'
+        text: "Source: Buganizer",
       },
       tooltip: {
-        pointFormat: '<b>{series.name}</b>: <b>{point.y:.1f}</b>'
+        pointFormat: "<b>{series.name}</b>: <b>{point.y:.1f}</b>",
       },
       xAxis: {
-        type: 'category',
+        type: "category",
         labels: {
           rotation: -45,
-        }
+        },
       },
       yAxis: {
         min: 0,
         title: {
-          text: 'Bandwidth (%)'
-        }
+          text: "Bandwidth (%)",
+        },
       },
       legend: {
-        enabled: false
+        enabled: false,
       },
       accessibility: {
         point: {
-          valueSuffix: '%'
-        }
+          valueSuffix: "%",
+        },
       },
       plotOptions: {
         pie: {
           allowPointSelect: true,
-          cursor: 'pointer',
+          cursor: "pointer",
           dataLabels: {
             enabled: true,
-            format: '<b>{point.name}</b>: {point.y:.1f} %'
+            format: "<b>{point.name}</b>: {point.y:.1f} %",
           },
           // showInLegend: true
-        }
+        },
       },
-      series: [{
-        name: sname,
-        colorByPoint: false,
-        data: data,
-      }],
+      series: [
+        {
+          name: sname,
+          colorByPoint: false,
+          data: data,
+        },
+      ],
     });
   }
 
-    function renderLdapDistChart(table, id, ctype, titletext, sname) {
-
-    // Create the chart with initial data 
+  function renderLdapDistChart(table, id, ctype, titletext, sname) {
+    // Create the chart with initial data
     let chart = Highcharts.chart(id, {
       chart: {
         type: ctype,
@@ -550,46 +571,47 @@
         text: titletext,
       },
       subtitle: {
-        text: 'Source: Buganizer'
+        text: "Source: Buganizer",
       },
       tooltip: {
-        pointFormat: '<b>{series.name}</b>: <b>{point.y:.1f}</b>'
+        pointFormat: "<b>{series.name}</b>: <b>{point.y:.1f}</b>",
       },
       xAxis: {
-        type: 'category',
+        type: "category",
         labels: {
           rotation: -45,
-        }
+        },
       },
       yAxis: {
         min: 0,
         title: {
-          text: 'Distribution (%)'
-        }
+          text: "Distribution (%)",
+        },
       },
       legend: {
-        enabled: true
+        enabled: true,
       },
       accessibility: {
         point: {
-          valueSuffix: '%'
-        }
+          valueSuffix: "%",
+        },
       },
-      series: [{
-        name: sname,
-        colorByPoint: false,
-        data: getbarData(table,'calculatedbandwidth'),
-        color: '#2979ff'
-      },
-      {
-        name: 'Utilisation',
-        colorByPoint: false,
-        data: getbarData(table,'total'),
-        color: '#e53935'
-      },],
+      series: [
+        {
+          name: sname,
+          colorByPoint: false,
+          data: getbarData(table, "calculatedbandwidth"),
+          color: "#2979ff",
+        },
+        {
+          name: "Utilisation",
+          colorByPoint: false,
+          data: getbarData(table, "total"),
+          color: "#e53935",
+        },
+      ],
     });
 
     return chart;
   }
-
 </script>

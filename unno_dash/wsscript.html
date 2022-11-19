@@ -2,6 +2,49 @@
   google.script.run.withSuccessHandler(processBugsArray).getBugsData();
   google.script.run.withSuccessHandler(displayBugData).getBugsData();
 
+  function processBugsArray(bugs) {
+      let bugsArray = bugs[0];
+      let ldaps = bugs[1];
+      let bandwidthData = bugs[2];
+      // console.log(bugsArray);
+      bugsArray.forEach((item) => {
+        // console.log(item);
+        if (item.assignee != "") {
+          // console.log("assignee :", item.assignee );
+          item.assignee = item.assignee.replace("@google.com", "");
+        }
+      });
+      let assigneeMap = Object.fromEntries(
+        d3.group(bugsArray, (b) => b.assignee)
+      );
+      let primaryMap = Object.fromEntries(d3.group(bugsArray, (b) => b.primary));
+      let secondaryMap = Object.fromEntries(
+        d3.group(bugsArray, (b) => b.secondary)
+      );
+      let reviewerMap = Object.fromEntries(
+        d3.group(bugsArray, (b) => b.reviewer)
+      );
+      let finalArray = [];
+      // console.log(assigneeMap, primaryMap, secondaryMap, reviewerMap);
+      // console.log(assigneeMap.erai)
+      let temp = {};
+      ldaps.map((item) => {
+        temp[item] = {
+          assignee: assigneeMap[item],
+          primary: primaryMap[item],
+          secondary: secondaryMap[item],
+          reviewer: reviewerMap[item],
+        };
+      });
+      // console.log('temp=>',temp);
+      let dataArray = getDatesObj(temp);
+      // let capArray = getCapacity(temp);
+      // capArray = mergeBandwidthData(bandwidthData, capArray);
+      // displayCapacity(capArray);
+      addSeries(dataArray);
+    }
+
+
   function getCategories(data) {
     let list = [];
     data = data.map((item) => {
@@ -53,51 +96,10 @@
     return dataArray;
   }
 
-  function processBugsArray(bugs) {
-    let bugsArray = bugs[0];
-    let ldaps = bugs[1];
-    let bandwidthData = bugs[2];
-    // console.log("ldaps :", ldaps[13]);
-    // console.log(bugsArray);
-    bugsArray.forEach((item) => {
-      // console.log(item);
-      if (item.assignee != "") {
-        // console.log("assignee :", item.assignee );
-        item.assignee = item.assignee.replace("@google.com", "");
-      }
-    });
-    let assigneeMap = Object.fromEntries(
-      d3.group(bugsArray, (b) => b.assignee)
-    );
-    let primaryMap = Object.fromEntries(d3.group(bugsArray, (b) => b.primary));
-    let secondaryMap = Object.fromEntries(
-      d3.group(bugsArray, (b) => b.secondary)
-    );
-    let reviewerMap = Object.fromEntries(
-      d3.group(bugsArray, (b) => b.reviewer)
-    );
-    let finalArray = [];
-    // console.log(assigneeMap, primaryMap, secondaryMap, reviewerMap);
-    // console.log(assigneeMap.erai)
-    let temp = {};
-    ldaps.map((item) => {
-      temp[item] = {
-        assignee: assigneeMap[item],
-        primary: primaryMap[item],
-        secondary: secondaryMap[item],
-        reviewer: reviewerMap[item],
-      };
-    });
-    // console.log('temp=>',temp);
-    let dataArray = getDatesObj(temp);
-    // let capArray = getCapacity(temp);
-    // capArray = mergeBandwidthData(bandwidthData, capArray);
-    // displayCapacity(capArray);
-    addSeries(dataArray);
-  }
+  
 
   function addSeries(dataArray) {
-    console.log('data => ', dataArray);
+    // console.log('data => ', dataArray);
 
     // Create root element
     // https://www.amcharts.com/docs/v5/getting-started/#Root_element
@@ -248,6 +250,7 @@
     }
     $("#data-table-buganizer").DataTable({
       filter: true,
+      autoWidth: false,
       data: data,
       order: [[2, "asc"]],
       columns: [
@@ -304,9 +307,6 @@
         //   data: "note",
         // },
       ],
-      columnDefs: [
-        {'width': '150px', 'targets':[1]}
-      ]
     });
   }
 </script>

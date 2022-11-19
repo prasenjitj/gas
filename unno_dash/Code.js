@@ -5,49 +5,9 @@ const UNNO_TODAY_RANGE = "OOO Today!A2:F";
 const FEEDBACK_RANGE = "feedback!A2:B";
 const PTB_RANGE = "work status (6251749)!A2:P";
 const BANDWIDTH_RANGE = "self_utilisation!A2:B";
-const LDAPS = ["abhinavrai",
-  "gargabhishek",
-  "pratapas",
-  "akhilbhatnagar",
-  "aishwarkar",
-  "anoopk",
-  "manupkumar",
-  "anushribora",
-  "apurvsharma",
-  "mishashish",
-  "bhamidipatim",
-  "debleen",
-  "devkumar",
-  "erai",
-  "vermagau",
-  "kumarigeeta",
-  "chettiyarh",
-  "hkgupta",
-  "jaisrivastava",
-  "lokeshboddeda",
-  "sharmamans",
-  "chauhannishant",
-  "rajeshya",
-  "rashmiranj",
-  "rrrekha",
-  "saxenarishabh",
-  "jaritika",
-  "bhatts",
-  "sanjeevsaini",
-  "sanub",
-  "dhallsarthak",
-  "satishrawat",
-  "sayyadz",
-  "shalinigusain",
-  "srshekhar",
-  "shrikantverma",
-  "sridharnagar",
-  "sumitkmishra",
-  "kholiya",
-  "tanmaysaxena",
-  "ujjawalb",
-  "bethay",
-  "yasmeenp"];
+const LDAP_RANGE = "active_ldaps!A2:A";
+
+const LDAPS = [].concat(...utilslib.getSheetData(LDAP_RANGE,WORKSTATUSSHEET_KEY));
 
 /**
  *
@@ -198,8 +158,6 @@ function getBugsArray() {
 
 
 function getBugsData() {
-  // const wisent = Wisent.wisent;
-  // wisent.automation();
   let data = utilslib.getSheetData(PTB_RANGE, WORKSTATUSSHEET_KEY);
   data =data.map((item) => ({
       id: item[0],
@@ -219,7 +177,9 @@ function getBugsData() {
       status: item[14],
       note: item[15],
     }));
-
+  // data = data.filter((item) => item.status =="ACCEPTED");
+  // console.log(data)
+  // console.log(LDAPS);
   return [data,LDAPS,getBandwidthData()];
 }
 

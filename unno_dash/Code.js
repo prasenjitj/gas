@@ -77,10 +77,10 @@ function doGet(e) {
       .evaluate()
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
-  // if(e.parameter.page == 'graph') {
-  //       return HtmlService.createTemplateFromFile('graph').evaluate().setXFrameOptionsMode(
-  //     HtmlService.XFrameOptionsMode.ALLOWALL);
-  // }
+  if(e.parameter.page == 'utilisation') {
+        return HtmlService.createTemplateFromFile('utilisation').evaluate().setXFrameOptionsMode(
+      HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
   // else, use page parameter to pick an html file from the script
   return HtmlService.createTemplateFromFile(e.parameter.page)
     .evaluate()

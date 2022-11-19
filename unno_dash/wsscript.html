@@ -2,67 +2,6 @@
   google.script.run.withSuccessHandler(processBugsArray).getBugsData();
   google.script.run.withSuccessHandler(displayBugData).getBugsData();
 
-  const complexity = {
-    P0: 2.5,
-    P1: 1,
-    P2: 0.5,
-    P3: 0.25,
-    S0: 2.5,
-    S1: 1,
-    S2: 0.5,
-    S3: 0.25,
-  };
-
-  function mergeBandwidthData(bandwidthData, capArray) {
-    capArray.forEach(
-      (object) => (object.bandwidth = bandwidthData[object.ldap])
-    );
-    console.log("cap array : ", capArray);
-    return capArray;
-  }
-
-  function setScore(obj, key, valueObj, flag, scoreKey) {
-    let hasValue = valueObj[flag];
-    if (hasValue) {
-      obj.ldap = key;
-      let score = 0;
-      for (let i of hasValue) {
-        score += complexity[i.priority];
-        obj[scoreKey] = score;
-      }
-    } else {
-      obj.ldap = key;
-      obj[scoreKey] = 0;
-    }
-  }
-
-  function getCapacity(data) {
-    let array = [];
-    for (let [key, value] of Object.entries(data)) {
-      let tempObj = {};
-      setScore(tempObj, key, value, "primary", "pScore");
-      setScore(tempObj, key, value, "secondary", "sScore");
-      setScore(tempObj, key, value, "reviewer", "rScore");
-      // setScore(tempObj,key, value,'assignee','aScore');
-      if (Object.keys(tempObj).length) {
-        let total = 0;
-        if (tempObj.pScore) {
-          total += tempObj.pScore;
-        }
-        if (tempObj.sScore) {
-          total += tempObj.sScore;
-        }
-        if (tempObj.rScore) {
-          total += tempObj.rScore;
-        }
-        tempObj.total = total;
-        tempObj.calculatedbandwidth = 10 - total;
-      }
-      array.push(tempObj);
-    }
-    return array;
-  }
-
   function getCategories(data) {
     let list = [];
     data = data.map((item) => {
@@ -151,14 +90,14 @@
     });
     // console.log('temp=>',temp);
     let dataArray = getDatesObj(temp);
-    let capArray = getCapacity(temp);
-    capArray = mergeBandwidthData(bandwidthData, capArray);
-    displayCapacity(capArray);
+    // let capArray = getCapacity(temp);
+    // capArray = mergeBandwidthData(bandwidthData, capArray);
+    // displayCapacity(capArray);
     addSeries(dataArray);
   }
 
   function addSeries(dataArray) {
-    console.log('data => ',dataArray);
+    console.log('data => ', dataArray);
 
     // Create root element
     // https://www.amcharts.com/docs/v5/getting-started/#Root_element
@@ -183,6 +122,17 @@
         layout: root.verticalLayout,
       })
     );
+
+    chart.children.unshift(am5.Label.new(root, {
+      text: "Work status per ldap",
+      fontSize: 24,
+      fontWeight: "400",
+      textAlign: "left",
+      x: am5.percent(50),
+      centerX: am5.percent(50),
+      paddingTop: 0,
+      paddingBottom: 10
+    }));
 
     // Add legend
     // https://www.amcharts.com/docs/v5/charts/xy-chart/legend-xy-series/
@@ -237,6 +187,32 @@
         sequencedInterpolation: true,
       })
     );
+
+    // series.bullets.push(function() {
+    //   return am5.Bullet.new(root, {
+    //     locationX: 1,
+    //     locationY: 0.5,
+    //     sprite: am5.Label.new(root, {
+    //       centerY: am5.p50,
+    //       text: "{valueX}",
+    //       populateText: true
+    //     })
+    //   });
+    // });
+
+    series.bullets.push(function() {
+      return am5.Bullet.new(root, {
+        locationX: 1,
+        locationY: 0.5,
+        sprite: am5.Label.new(root, {
+          centerX: am5.p100,
+          centerY: am5.p50,
+          text: "{valueX}",
+          fill: am5.color(0xffffff),
+          populateText: true
+        })
+      });
+    });
 
     series.columns.template.setAll({
       height: 20,
@@ -317,12 +293,6 @@
             "YYYY-MM-DD",
             "en-US"
           ),
-          // function(data) {
-          //   console.log("eta :", data);
-          //   if(data != "") {
-          //     return moment(data).format("YYYY-MM-DD")
-          //   } return "";
-          // }
         },
         {
           data: "priority",
@@ -334,107 +304,6 @@
         //   data: "note",
         // },
       ],
-    });
-  }
-
-  function displayCapacity(dataArray) {
-    let data = dataArray;
-    if (!data) {
-      return 0;
-    }
-    let table = $("#data-table-capacity").DataTable({
-      filter: true,
-      data: data,
-      order: [[4, "desc"]],
-      columns: [
-        {
-          data: "ldap",
-        },
-        {
-          data: "pScore",
-        },
-        {
-          data: "sScore",
-        },
-        {
-          data: "rScore",
-        },
-        {
-          data: "total",
-          render: function (data) {
-            return (Number(data) * 10).toString().concat("", "%");
-          },
-        },
-        {
-          data: "calculatedbandwidth",
-          render: function (data) {
-            return (Number(data) * 10).toString().concat("", "%");
-          },
-        },
-        {
-          data: "bandwidth",
-        },
-      ],
-    });
-
-    // Create the chart with initial data 
-    let chart = Highcharts.chart('piechart', {
-        chart: {
-            type: 'pie',
-        },
-        title: {
-            text: 'Bandwidth Per ldap',
-        },
-        tooltip: {
-        pointFormat: '<b>{series.name}</b>: <b>{point.y:.1f}%</b>'
-        },
-        accessibility: {
-          point: {
-              valueSuffix: '%'
-          }
-        },
-        plotOptions: {
-          pie: {
-            allowPointSelect: true,
-            cursor: 'pointer',
-            dataLabels: {
-              enabled: true,
-              format: '<b>{point.name}</b>: {point.y:.1f} %'
-            },
-            // showInLegend: true
-          }
-        },
-        series: [{
-          name: 'Bandwidth',
-          // colorByPoint: true,
-          data: chartData(table),
-          }],
-    });
- 
-    // On each draw, update the data in the chart
-    table.on('draw', function () {
-        chart.series[0].setData(chartData(table));
-    });
-  }
-
-  function chartData(table) {
-    let counts = {};
-    // Count the number of entries for each position
-    table
-      .rows()
-      .data()
-      .each(function (val) {
-        //  console.log("chart value :", val.ldap,val.calculatedbandwidth);
-        counts[val.ldap] = (Number(val.calculatedbandwidth) * 10);
-      });
-      console.log("chart value :", counts);
-
-    // And map it to the format highcharts uses
-    return $.map(counts, function (val, key) {
-      return {
-        name: key,
-        y: val,
-      };
     });
   }
 </script>

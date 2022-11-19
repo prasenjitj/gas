@@ -1,0 +1,595 @@
+<script>
+  google.script.run.withSuccessHandler(processBugsArray).getBugsData();
+  google.script.run.withSuccessHandler(displayBugData).getBugsData();
+
+  const complexity = {
+    P0: 2.5,
+    P1: 1,
+    P2: 0.5,
+    P3: 0.25,
+    S0: 2.5,
+    S1: 1,
+    S2: 0.5,
+    S3: 0.25,
+  };
+  function processBugsArray(bugs) {
+    let bugsArray = bugs[0];
+    let ldaps = bugs[1];
+    let bandwidthData = bugs[2];
+    // console.log("ldaps :", ldaps[13]);
+    // console.log(bugsArray);
+    bugsArray.forEach((item) => {
+      // console.log(item);
+      if (item.assignee != "") {
+        // console.log("assignee :", item.assignee );
+        item.assignee = item.assignee.replace("@google.com", "");
+      }
+    });
+    let assigneeMap = Object.fromEntries(
+      d3.group(bugsArray, (b) => b.assignee)
+    );
+    let primaryMap = Object.fromEntries(d3.group(bugsArray, (b) => b.primary));
+    let secondaryMap = Object.fromEntries(
+      d3.group(bugsArray, (b) => b.secondary)
+    );
+    let reviewerMap = Object.fromEntries(
+      d3.group(bugsArray, (b) => b.reviewer)
+    );
+    let finalArray = [];
+    // console.log(assigneeMap, primaryMap, secondaryMap, reviewerMap);
+    // console.log(assigneeMap.erai)
+    let temp = {};
+    ldaps.map((item) => {
+      temp[item] = {
+        assignee: assigneeMap[item],
+        primary: primaryMap[item],
+        secondary: secondaryMap[item],
+        reviewer: reviewerMap[item],
+      };
+    });
+    // console.log('temp=>',temp);
+    let dataArray = getDatesObj(temp);
+    let capArray = getCapacity(temp);
+    capArray = mergeBandwidthData(bandwidthData, capArray);
+    let teamArray = teamUtisation(capArray);
+    let bandArray = getBndCount(capArray);
+    displayCapacity(capArray);
+    renderTeamChart(teamArray,'teampiechart','pie', 'Team Utilisation', 'Utilisation');
+    renderDistChart(bandArray,'bwtrendchart','spline', 'Bandwidth Distribution', 'Distribution');
+  }
+
+
+  function getBndCount(data) {
+      let obj = {};
+      data.forEach((item) => {
+          console.log(item.calculatedbandwidth * 10);
+          if (obj.hasOwnProperty(item.calculatedbandwidth * 10)) {
+              obj[item.calculatedbandwidth * 10] = obj[item.calculatedbandwidth * 10]+1;
+          } else {
+              obj[item.calculatedbandwidth * 10] = 1;
+          }
+      });
+      let array = [];
+      for (let [key, value] of Object.entries(obj)) {
+          array.push(
+              {
+                  name: key+'%',
+                  y: value
+              }
+          )
+      }
+      return array
+  }
+
+  function teamUtisation(data) {
+
+    let teamUtObj = {};
+    let sum = 0;
+    let count = 0;
+    data.forEach((item) => {
+        sum += item.total;
+        count++;
+    });
+    teamUtObj.utilisation = sum;
+    teamUtObj.bandwidth = (count * 10) - sum;
+    let array = [];
+    for (let [key, value] of Object.entries(teamUtObj)) {
+        array.push(
+            {
+                name: key,
+                y: value
+            }
+        )
+      }
+    return array;
+    }
+
+  function mergeBandwidthData(bandwidthData, capArray) {
+    capArray.forEach(
+      (object) => (object.bandwidth = bandwidthData[object.ldap])
+    );
+    console.log("cap array : ", capArray);
+    return capArray;
+  }
+
+  function setScore(obj, key, valueObj, flag, scoreKey) {
+    let hasValue = valueObj[flag];
+    if (hasValue) {
+      obj.ldap = key;
+      let score = 0;
+      for (let i of hasValue) {
+        score += complexity[i.priority];
+        obj[scoreKey] = score;
+      }
+    } else {
+      obj.ldap = key;
+      obj[scoreKey] = 0;
+    }
+  }
+
+  function getCapacity(data) {
+    let array = [];
+    for (let [key, value] of Object.entries(data)) {
+      let tempObj = {};
+      setScore(tempObj, key, value, "primary", "pScore");
+      setScore(tempObj, key, value, "secondary", "sScore");
+      setScore(tempObj, key, value, "reviewer", "rScore");
+      // setScore(tempObj,key, value,'assignee','aScore');
+      if (Object.keys(tempObj).length) {
+        let total = 0;
+        if (tempObj.pScore) {
+          total += tempObj.pScore;
+        }
+        if (tempObj.sScore) {
+          total += tempObj.sScore;
+        }
+        if (tempObj.rScore) {
+          total += tempObj.rScore;
+        }
+        tempObj.total = total;
+        tempObj.calculatedbandwidth = 10 - total;
+      }
+      array.push(tempObj);
+    }
+    return array;
+  }
+
+  // function getCategories(data) {
+  //   let list = [];
+  //   data = data.map((item) => {
+  //     list.push({ category: item.category });
+  //   });
+  //   return list;
+  // }
+
+  function getDatesObj(data) {
+    let obj = {};
+    for (let [key, value] of Object.entries(data)) {
+      let tempArray = [];
+      etaArrayBuilder(obj, key, value, tempArray, "assignee");
+      etaArrayBuilder(obj, key, value, tempArray, "primary");
+      etaArrayBuilder(obj, key, value, tempArray, "secondary");
+      etaArrayBuilder(obj, key, value, tempArray, "reviewer");
+    }
+    // console.log(obj);
+    return getFinalObj(obj);
+  }
+
+  function etaArrayBuilder(newObj, key, object, tempArray, flag) {
+    let hasFlag = object[flag];
+    if (hasFlag) {
+      let array = object[flag];
+      for (let item of array) {
+        tempArray.push(item.eta);
+        newObj[key] = tempArray;
+      }
+    }
+  }
+
+  function getFinalObj(datesObj) {
+    let dataArray = new Array();
+    for (let [key, value] of Object.entries(datesObj)) {
+      value = value.map((date) => new Date(date));
+      let maxDate = moment(new Date(Math.max.apply(null, value))).format(
+        "YYYY-MM-DD"
+      );
+      // let minDate = moment(new Date(Math.min.apply(null, value))).format('YYYY-MM-DD');
+      let minDate = moment(new Date()).format("YYYY-MM-DD");
+      dataArray.push({
+        toDate: maxDate,
+        fromDate: minDate,
+        category: key,
+      });
+    }
+    // console.log('dataarray =>', dataArray);
+    return dataArray;
+  }
+
+  
+  function displayBugData(dataArray) {
+    let data = dataArray[0];
+    if (!data) {
+      return 0;
+    }
+    $("#data-table-buganizer").DataTable({
+      filter: true,
+      data: data,
+      order: [[2, "asc"]],
+      columns: [
+        {
+          data: "id",
+          render: function (data, type, row) {
+            return '<a href="http://b/' + data + '">b/' + data + "</a>";
+          },
+        },
+        {
+          data: "title",
+        },
+        {
+          data: "assignee",
+        },
+        {
+          data: "primary",
+        },
+        {
+          data: "secondary",
+        },
+        {
+          data: "reviewer",
+        },
+        {
+          data: "projectStatus",
+        },
+        {
+          data: "status",
+        },
+        {
+          data: "otd",
+          render: DataTable.render.datetime(
+            "MM/DD/YYYY",
+            "YYYY-MM-DD",
+            "en-US"
+          )
+        },
+        {
+          data: "eta",
+          render: DataTable.render.datetime(
+            "MM/DD/YYYY",
+            "YYYY-MM-DD",
+            "en-US"
+          ),
+          // function(data) {
+          //   console.log("eta :", data);
+          //   if(data != "") {
+          //     return moment(data).format("YYYY-MM-DD")
+          //   } return "";
+          // }
+        },
+        {
+          data: "priority",
+        },
+        {
+          data: "severity",
+        },
+        // {
+        //   data: "note",
+        // },
+      ],
+    });
+  }
+
+  function displayCapacity(dataArray) {
+    let data = dataArray;
+    if (!data) {
+      return 0;
+    }
+    let table = $("#data-table-capacity").DataTable({
+      filter: true,
+      data: data,
+      order: [[4, "desc"]],
+      columns: [
+        {
+          data: "ldap",
+        },
+        {
+          data: "pScore",
+        },
+        {
+          data: "sScore",
+        },
+        {
+          data: "rScore",
+        },
+        {
+          data: "total",
+          render: function (data) {
+            return (Number(data) * 10).toString().concat("", "%");
+          },
+        },
+        {
+          data: "calculatedbandwidth",
+          render: function (data) {
+            return (Number(data) * 10).toString().concat("", "%");
+          },
+        },
+        {
+          data: "bandwidth",
+        },
+      ],
+    });
+
+    // Create the chart with initial data 
+    let chart = Highcharts.chart('piechart', {
+      chart: {
+        type: 'pie',
+      },
+      title: {
+        text: 'Uitlisation Per ldap based on calculation',
+      },
+      subtitle: {
+        text: 'Source: Buganizer'
+      },
+      tooltip: {
+        pointFormat: '<b>{series.name}</b>: <b>{point.y:.1f}%</b>'
+      },
+      accessibility: {
+        point: {
+          valueSuffix: '%'
+        }
+      },
+      plotOptions: {
+        pie: {
+          allowPointSelect: true,
+          cursor: 'pointer',
+          dataLabels: {
+            enabled: true,
+            format: '<b>{point.name}</b>: {point.y:.1f} %'
+          },
+          // showInLegend: true
+        }
+      },
+      series: [{
+        name: 'Utilisation',
+        // colorByPoint: true,
+        data: chartData(table),
+      }],
+    });
+
+    // On each draw, update the data in the chart
+    table.on('draw', function () {
+      chart.series[0].setData(chartData(table));
+    });
+
+    let barchart = Highcharts.chart('barchart', {
+      chart: {
+        type: 'column'
+      },
+      title: {
+        text: 'Bandwidth available per ldap based on calculations'
+      },
+      subtitle: {
+        text: 'Source: Buganizer'
+      },
+      xAxis: {
+        type: 'category',
+        labels: {
+          rotation: -45,
+        }
+      },
+      yAxis: {
+        min: 0,
+        title: {
+          text: 'Bandwidth (%)'
+        }
+      },
+      legend: {
+        enabled: false
+      },
+      tooltip: {
+        pointFormat: '{series.name}: <b>{point.y:.1f} %</b>'
+      },
+      series: [{
+        name: 'Bandwidth',
+        colorByPoint: true,
+        data: getbarData(table,'calculatedbandwidth'),
+        dataLabels: {
+          enabled: true,
+          rotation: -90,
+          color: '#FFFFFF',
+          align: 'right',
+          format: '{point.y:.1f}', // one decimal
+          y: 10, // 10 pixels down from the top
+          style: {
+            fontSize: '10px',
+            fontFamily: 'Verdana, sans-serif'
+          }
+        }
+      }]
+    });
+
+    // On each draw, update the data in the chart
+    table.on('draw', function () {
+      barchart.series[0].setData(getbarData(table,'calculatedbandwidth'));
+    });
+
+    let splineChart = renderLdapDistChart(table, 'ldapdistchart', 'areaspline', 'Ldap Utilisation Distribution', 'Bandwidth');
+  }
+
+  function chartData(table) {
+    let counts = {};
+    // Count the number of entries for each position
+    table.rows().data().each(function (val) {
+      //  console.log("chart value :", val.ldap,val.calculatedbandwidth);
+      counts[val.ldap] = (Number(val.total) * 10);
+    });
+    // console.log("chart value :", counts);
+
+    // And map it to the format highcharts uses
+    return $.map(counts, function (val, key) {
+      return {
+        name: key,
+        y: val,
+      };
+    });
+  }
+
+  function getbarData(table,key) {
+    let array = [];
+    table.rows().data().each(function (val) {
+      array.push([val.ldap, (Number(val[key]) * 10)])
+    });
+    console.log('array ->', array);
+    return array;
+
+  }
+
+
+  function renderTeamChart(data, id, ctype, titletext, sname) {
+
+    // Create the chart with initial data 
+    let chart = Highcharts.chart(id, {
+      chart: {
+        type: ctype,
+      },
+      title: {
+        text: titletext,
+      },
+      subtitle: {
+        text: 'Source: Buganizer'
+      },
+      tooltip: {
+        pointFormat: '<b>{point.name}</b>: <b>{point.y:.1f}%</b>'
+        },
+      accessibility: {
+        point: {
+          valueSuffix: '%'
+        }
+      },
+      plotOptions: {
+        pie: {
+          allowPointSelect: true,
+          cursor: 'pointer',
+          dataLabels: {
+            enabled: true,
+            format: '<b>{point.name}</b>: {point.y:.1f} %'
+          },
+          // showInLegend: true
+        }
+      },
+      series: [{
+        name: sname,
+        colorByPoint: true,
+        data: data,
+      }],
+    });
+  }
+
+  function renderDistChart(data, id, ctype, titletext, sname) {
+
+    // Create the chart with initial data 
+    let chart = Highcharts.chart(id, {
+      chart: {
+        type: ctype,
+      },
+      title: {
+        text: titletext,
+      },
+      subtitle: {
+        text: 'Source: Buganizer'
+      },
+      tooltip: {
+        pointFormat: '<b>{series.name}</b>: <b>{point.y:.1f}</b>'
+      },
+      xAxis: {
+        type: 'category',
+        labels: {
+          rotation: -45,
+        }
+      },
+      yAxis: {
+        min: 0,
+        title: {
+          text: 'Bandwidth (%)'
+        }
+      },
+      legend: {
+        enabled: false
+      },
+      accessibility: {
+        point: {
+          valueSuffix: '%'
+        }
+      },
+      plotOptions: {
+        pie: {
+          allowPointSelect: true,
+          cursor: 'pointer',
+          dataLabels: {
+            enabled: true,
+            format: '<b>{point.name}</b>: {point.y:.1f} %'
+          },
+          // showInLegend: true
+        }
+      },
+      series: [{
+        name: sname,
+        colorByPoint: false,
+        data: data,
+      }],
+    });
+  }
+
+    function renderLdapDistChart(table, id, ctype, titletext, sname) {
+
+    // Create the chart with initial data 
+    let chart = Highcharts.chart(id, {
+      chart: {
+        type: ctype,
+      },
+      title: {
+        text: titletext,
+      },
+      subtitle: {
+        text: 'Source: Buganizer'
+      },
+      tooltip: {
+        pointFormat: '<b>{series.name}</b>: <b>{point.y:.1f}</b>'
+      },
+      xAxis: {
+        type: 'category',
+        labels: {
+          rotation: -45,
+        }
+      },
+      yAxis: {
+        min: 0,
+        title: {
+          text: 'Distribution (%)'
+        }
+      },
+      legend: {
+        enabled: true
+      },
+      accessibility: {
+        point: {
+          valueSuffix: '%'
+        }
+      },
+      series: [{
+        name: sname,
+        colorByPoint: false,
+        data: getbarData(table,'calculatedbandwidth'),
+        color: '#2979ff'
+      },
+      {
+        name: 'Utilisation',
+        colorByPoint: false,
+        data: getbarData(table,'total'),
+        color: '#e53935'
+      },],
+    });
+
+    return chart;
+  }
+
+</script>

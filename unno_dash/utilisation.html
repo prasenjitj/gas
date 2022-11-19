@@ -58,11 +58,11 @@
               <span class="sr-only">Home</span></a>
           </li>
           <li class="nav-item">
-            <?var url = getScriptUrl();?><a class="nav-link active" href="<?=url?>?page=table" target="_top">Work
+            <?var url = getScriptUrl();?><a class="nav-link" href="<?=url?>?page=table" target="_top">Work
               Status</a>
           </li>
           <li class="nav-item">
-            <?var url = getScriptUrl();?><a class="nav-link" href="<?=url?>?page=utilisation"
+            <?var url = getScriptUrl();?><a class="nav-link active" href="<?=url?>?page=utilisation"
               target="_top">Utilisation</a>
           </li>
         </ul>
@@ -77,50 +77,118 @@
   </nav>
 
   <div class="container">
+
     <div class="row justify-content-start">
+      <div class="col-md-6">
+        <div class="card" style="width: 40rem">
+          <!-- <div class="card-header">Utilisation per resource</div> -->
+          <div class="card-body">
+            <div id="piechart"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="card" style="width: 50rem">
+          <!-- <div class="card-header">Ldap Utilisation Distribution</div> -->
+          <div class="card-body">
+            <div id="ldapdistchart"></div>
+          </div>
+        </div>
+      </div>
+
 
 
     </div>
 
-    <div class="container">
-      <div class="row justify-content-start">
-        <div class="col-md-6">
-          <div class="card" style="width: 85rem">
-            <div class="card-body">
-              <div id="timechart"></div>
-            </div>
+    <div class="row justify-content-start">
+
+      <div class="col-md-6">
+        <div class="card" style="width: 40rem">
+          <!-- <div class="card-header">Team utilisation</div> -->
+          <div class="card-body">
+            <div id="teampiechart"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="card" style="width: 50rem">
+          <!-- <div class="card-header">Bandwidth per resource</div> -->
+          <div class="card-body">
+            <div id="barchart"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row justify-content-start">
+
+
+
+      <div class="col-md-6">
+        <div class="card" style="width: 40rem">
+          <!-- <div class="card-header">Pivot by bandwidth percentage</div> -->
+          <div class="card-body">
+            <div id="bwtrendchart"></div>
           </div>
         </div>
       </div>
       <div class="col-md-6">
-        <div class="card" style="width: 85rem">
-          <div class="card-header">Buganizer Data</div>
+        <div class="card" style="width: 50rem">
+          <div class="card-header">Bandwidth Table</div>
           <div class="card-body">
-            <table id="data-table-buganizer" class="table table-striped table-sm table-hover table-bordered">
+            <table id="data-table-capacity" class="table table-striped table-sm table-hover table-bordered">
               <thead>
                 <tr>
-                  <th>Id</th>
-                  <th>Title</th>
-                  <th>Assignee</th>
-                  <th>Primary</th>
-                  <th>Secondary</th>
-                  <th>Reviewer</th>
-                  <th>Project Status</th>
-                  <th>Status</th>
-                  <th>Target Date</th>
-                  <th>Agent ETA</th>
-                  <th>Priority</th>
-                  <th>Severity</th>
-                  <!-- <th>Last comment</th> -->
+                  <th>ldap</th>
+                  <th>Primary score</th>
+                  <th>Secondary score</th>
+                  <th>Reviewer score</th>
+                  <th>Utilization (calculated)</th>
+                  <th>Bandwidth (calculated)</th>
+                  <th>Bandwidth (self)</th>
                 </tr>
               </thead>
             </table>
           </div>
         </div>
       </div>
+
+
     </div>
-    <!-- <?!= HtmlService.createHtmlOutputFromFile('javascript').getContent(); ?> -->
-    <?!= HtmlService.createHtmlOutputFromFile('wsscript').getContent(); ?>
+
+
+
+    <div class="col-md-6">
+      <div class="card" style="width: 90rem">
+        <div class="card-header">Buganizer Data</div>
+        <div class="card-body">
+          <table id="data-table-buganizer" class="table table-striped table-sm table-hover table-bordered">
+            <thead>
+              <tr>
+                <th>Id</th>
+                <th>Title</th>
+                <th>Assignee</th>
+                <th>Primary</th>
+                <th>Secondary</th>
+                <th>Reviewer</th>
+                <th>Project Status</th>
+                <th>Status</th>
+                <th>Target Date</th>
+                <th>Agent ETA</th>
+                <th>Priority</th>
+                <th>Severity</th>
+                <!-- <th>Last comment</th> -->
+              </tr>
+            </thead>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- <?!= HtmlService.createHtmlOutputFromFile('javascript').getContent(); ?> -->
+  <?!= HtmlService.createHtmlOutputFromFile('utscript').getContent(); ?>
 </body>
 
 </html>

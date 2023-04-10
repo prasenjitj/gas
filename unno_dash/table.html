@@ -19,13 +19,27 @@
   <script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
   <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
   <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+  <script type="text/javascript" src=" https://cdn.datatables.net/select/1.5.0/js/dataTables.select.min.js"></script>
+  <script type="text/javascript" src="https://cdn.datatables.net/responsive/2.4.0/js/dataTables.responsive.min.js">
+  </script>
+  <script type="text/javascript" src="https://cdn.datatables.net/fixedheader/3.3.1/js/dataTables.fixedHeader.min.js">
+  </script>
+  <script type="text/javascript" src="https://cdn.datatables.net/keytable/2.8.0/js/dataTables.keyTable.min.js"></script>
+  <script type="text/javascript"
+    src="https://cdn.datatables.net/searchbuilder/1.4.0/js/dataTables.searchBuilder.min.js"></script>
+  <script type="text/javascript"
+    src="https://cdn.datatables.net/searchbuilder/1.4.0/js/searchBuilder.bootstrap5.min.js"></script>
+  <script type="text/javascript" src="https://cdn.datatables.net/datetime/1.2.0/js/dataTables.dateTime.min.js"></script>
 
   <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.2.0/css/bootstrap.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css" />
   <link rel="stylesheet" href="https://cdn.datatables.net/1.12.1/css/dataTables.bootstrap5.min.css" />
   <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.2.3/css/buttons.dataTables.min.css" />
-
+  <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.4.0/css/responsive.dataTables.min.css" />
+  <link rel="stylesheet" href="https://cdn.datatables.net/keytable/2.8.0/css/keyTable.dataTables.min.css" />
+  <link rel="stylesheet" href="https://cdn.datatables.net/searchbuilder/1.4.0/css/searchBuilder.bootstrap5.min.css" />
+  <link rel="stylesheet" href="https://cdn.datatables.net/datetime/1.2.0/css/dataTables.dateTime.min.css" />
 
   <!-- amchart.js dependency below this line -->
   <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
@@ -66,41 +80,42 @@
               target="_top">Utilisation</a>
           </li>
         </ul>
-        <!-- <span class="navbar-text">Date filter:</span>
-        <div class="col-xs-3">
-          <form class="container-sm">
-            <input type="text" class="form-control me-2" name="daterange" value="" />
-          </form>
-        </div> -->
       </div>
     </div>
   </nav>
 
+
+  <div class="container">
+    <div class="row justify-content-start">
+      <div class="col">
+        <button type="button" id="all-button" class="btn btn-primary">All</button>
+        <button type="button" id="accepted-button" class="btn btn-primary">Accepted</button>
+      </div>
+    </div>
+  </div>
+
   <div class="container">
     <div class="row justify-content-start">
 
+      <div class="col-md-6">
+        <div class="card" style="width: 85rem">
+          <div class="card-body">
+            <div id="timechartone"></div>
 
-    </div>
-
-    <div class="container">
-      <div class="row justify-content-start">
-        <div class="col-md-6">
-          <div class="card" style="width: 85rem">
-            <div class="card-body">
-              <div id="timechart"></div>
-            </div>
           </div>
         </div>
       </div>
-      <div class="col-md-14">
-        <div class="card" style="width: 85rem">
-          <div class="card-header">Buganizer Data</div>
-          <div class="card-body">
-            <table id="data-table-buganizer" class="table table-striped table-sm table-hover table-bordered" cellspacing="0" width="100%">
-              <thead>
-                <tr>
-                  <th>Id</th>
+    </div>
+    <div class="col-md-14">
+      <div class="card" style="width: 85rem">
+        <div class="card-header">Buganizer Data</div>
+        <div class="card-body">
+          <table id="data-table-buganizer" class="table table-sm table-hover table-bordered compact" cellspacing="0"
+            style="width:100%">
+            <thead class="table-primary">
+              <tr>
                   <th>Title</th>
+                  <th>Id</th>
                   <th>Assignee</th>
                   <th>Primary</th>
                   <th>Secondary</th>
@@ -111,16 +126,16 @@
                   <th>Agent ETA</th>
                   <th>Priority</th>
                   <th>Severity</th>
-                  <!-- <th>Last comment</th> -->
-                </tr>
-              </thead>
-            </table>
-          </div>
+                  <th>Last comment</th>
+              </tr>
+            </thead>
+          </table>
         </div>
       </div>
     </div>
-    <!-- <?!= HtmlService.createHtmlOutputFromFile('javascript').getContent(); ?> -->
-    <?!= HtmlService.createHtmlOutputFromFile('wsscript').getContent(); ?>
+  </div>
+  <!-- <?!= HtmlService.createHtmlOutputFromFile('javascript').getContent(); ?> -->
+  <?!= HtmlService.createHtmlOutputFromFile('wsscript').getContent(); ?>
 </body>
 
 </html>

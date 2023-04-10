@@ -1,315 +1,376 @@
 <script>
-  google.script.run.withSuccessHandler(processBugsArray).getBugsData();
-  google.script.run.withSuccessHandler(displayBugData).getBugsData();
+google.script.run.withSuccessHandler(processBugsArray).getBugsData();
+google.script.run.withSuccessHandler(displayBugData).getBugsData();
 
-  /**
-   * Main callback function, with no rturns
-   * @param {Array} bugs Ann array of bugs object.
-   */
-  function processBugsArray(bugs) {
-    let bugsArray = bugs[0];
-    let ldaps = bugs[1];
-    let bandwidthData = bugs[2];
-    // console.log(bugsArray);
-    bugsArray.forEach((item) => {
-      // console.log(item);
-      if (item.assignee != "") {
-        // console.log("assignee :", item.assignee );
-        item.assignee = item.assignee.replace("@google.com", "");
-      }
-    });
-    let assigneeMap = Object.fromEntries(
-      d3.group(bugsArray, (b) => b.assignee)
-    );
-    let primaryMap = Object.fromEntries(d3.group(bugsArray, (b) => b.primary));
-    let secondaryMap = Object.fromEntries(
-      d3.group(bugsArray, (b) => b.secondary)
-    );
-    let reviewerMap = Object.fromEntries(
-      d3.group(bugsArray, (b) => b.reviewer)
-    );
-    let finalArray = [];
-    // console.log(assigneeMap, primaryMap, secondaryMap, reviewerMap);
-    // console.log(assigneeMap.erai)
-    let temp = {};
-    ldaps.map((item) => {
-      temp[item] = {
-        assignee: assigneeMap[item],
-        primary: primaryMap[item],
-        secondary: secondaryMap[item],
-        reviewer: reviewerMap[item],
-      };
-    });
-    // console.log('temp=>',temp);
-    let dataArray = getDatesObj(temp);
-    // let capArray = getCapacity(temp);
-    // capArray = mergeBandwidthData(bandwidthData, capArray);
-    // displayCapacity(capArray);
-    addSeries(dataArray);
-  }
-
-  function getCategories(data) {
-    let list = [];
-    data = data.map((item) => {
-      list.push({ category: item.category });
-    });
-    return list;
-  }
-
-  function getDatesObj(data) {
-    let obj = {};
-    for (let [key, value] of Object.entries(data)) {
-      let tempArray = [];
-      etaArrayBuilder(obj, key, value, tempArray, "assignee");
-      etaArrayBuilder(obj, key, value, tempArray, "primary");
-      etaArrayBuilder(obj, key, value, tempArray, "secondary");
-      etaArrayBuilder(obj, key, value, tempArray, "reviewer");
+/**
+ * Main callback function, with no rturns
+ * @param {Array} bugs Ann array of bugs object.
+ */
+function processBugsArray(bugs) {
+  let bugsArray = bugs[0];
+  let ldaps = bugs[1];
+  // console.log(bugsArray);
+  let accpetedbugsArray = filterAcceptedBugs(bugsArray);
+  let dataArray = prepareData(bugsArray,ldaps);
+  let dataArrayNew = prepareData(accpetedbugsArray,ldaps);
+  addSeries(dataArray, 'timechartone',dataArrayNew);
+}
+/**
+ * Transform bugsArray into dataArray
+ * @param {Array} bugsArray
+ * @param {ldaps} ldaps
+ * @returns {Array} dataArray
+ */
+function prepareData(bugsArray,ldaps) {
+  bugsArray.forEach((item) => {
+    if (item.assignee != '') {
+      item.assignee = item.assignee.replace('@google.com', '');
     }
-    // console.log(obj);
-    return getFinalObj(obj);
-  }
+  });
+  let assigneeMap = Object.fromEntries(d3.group(bugsArray, (b) => b.assignee));
+  let primaryMap = Object.fromEntries(d3.group(bugsArray, (b) => b.primary));
+  let secondaryMap = Object.fromEntries(
+    d3.group(bugsArray, (b) => b.secondary)
+  );
+  let reviewerMap = Object.fromEntries(d3.group(bugsArray, (b) => b.reviewer));
+  let temp = {};
+  ldaps.map((item) => {
+    temp[item] = {
+      assignee: assigneeMap[item],
+      primary: primaryMap[item],
+      secondary: secondaryMap[item],
+      reviewer: reviewerMap[item],
+    };
+  });
+  // console.log('temp=>',temp);
+  let dataArray = getDatesObj(temp);
+  return dataArray;
+}
+/**
+ * filters bugs where status is Accepted.
+ * @param {Array} bugsArray
+ * @return {Array} bugsArray
+ */
+function filterAcceptedBugs(bugsArray) {
+  return bugsArray.filter((item) => item.status == 'ACCEPTED');
+}
 
-  function etaArrayBuilder(newObj, key, object, tempArray, flag) {
-    let hasFlag = object[flag];
-    if (hasFlag) {
-      let array = object[flag];
-      for (let item of array) {
+function getCategories(data) {
+  let list = [];
+  data = data.map((item) => {
+    list.push({ category: item.category });
+  });
+  return list;
+}
+
+function getDatesObj(data) {
+  let obj = {};
+  for (let [key, value] of Object.entries(data)) {
+    let tempArray = [];
+    etaArrayBuilder(obj, key, value, tempArray, 'assignee');
+    etaArrayBuilder(obj, key, value, tempArray, 'primary');
+    etaArrayBuilder(obj, key, value, tempArray, 'secondary');
+    etaArrayBuilder(obj, key, value, tempArray, 'reviewer');
+  }
+  // console.log(obj);
+  return getFinalObj(obj);
+}
+
+function etaArrayBuilder(newObj, key, object, tempArray, flag) {
+  let hasFlag = object[flag];
+  if (hasFlag) {
+    let array = object[flag];
+    for (let item of array) {
+      if(item.eta != ''){
         tempArray.push(item.eta);
-        newObj[key] = tempArray;
       }
+      // console.log(tempArray)
+      newObj[key] = tempArray;
     }
   }
+}
 
-  function getFinalObj(datesObj) {
-    let dataArray = new Array();
-    for (let [key, value] of Object.entries(datesObj)) {
-      value = value.map((date) => new Date(date));
-      let maxDate = moment(new Date(Math.max.apply(null, value))).format(
-        "YYYY-MM-DD"
-      );
-      // let minDate = moment(new Date(Math.min.apply(null, value))).format('YYYY-MM-DD');
-      let minDate = moment(new Date()).format("YYYY-MM-DD");
-      dataArray.push({
-        toDate: maxDate,
-        fromDate: minDate,
-        category: key,
-      });
-    }
-    // console.log('dataarray =>', dataArray);
-    return dataArray;
+function getFinalObj(datesObj) {
+  let dataArray = new Array();
+  for (let [key, value] of Object.entries(datesObj)) {
+    value = value.map((date) => new Date(date));
+    let maxDate = moment(new Date(Math.max.apply(null, value))).format(
+      'YYYY-MM-DD'
+    );
+    // let minDate = moment(new Date(Math.min.apply(null, value))).format('YYYY-MM-DD');
+    let minDate = moment(new Date()).format('YYYY-MM-DD');
+    dataArray.push({
+      toDate: maxDate,
+      fromDate: minDate,
+      category: key,
+    });
   }
+  // console.log('dataarray =>', dataArray);
+  return dataArray;
+}
 
-  function addSeries(dataArray) {
-    // console.log('data => ', dataArray);
+function addSeries(dataArray, chartId, dataArrayNew) {
+  // console.log('data => ', dataArray);
+  // console.log('New data => ', dataArrayNew);
 
-    // Create root element
-    // https://www.amcharts.com/docs/v5/getting-started/#Root_element
-    var root = am5.Root.new("timechart");
-    root.dateFormatter.setAll({
-      dateFormat: "yyyy-MM-dd",
-      dateFields: ["valueX", "openValueX"],
+  // Create root element
+  // https://www.amcharts.com/docs/v5/getting-started/#Root_element
+  var root = am5.Root.new(chartId);
+  root.dateFormatter.setAll({
+    dateFormat: 'yyyy-MM-dd',
+    dateFields: ['valueX', 'openValueX'],
+  });
+
+  // Set themes
+  // https://www.amcharts.com/docs/v5/concepts/themes/
+  root.setThemes([am5themes_Animated.new(root)]);
+
+  // Create chart
+  // https://www.amcharts.com/docs/v5/charts/xy-chart/
+  var chart = root.container.children.push(
+    am5xy.XYChart.new(root, {
+      panX: false,
+      panY: false,
+      wheelX: 'panX',
+      wheelY: 'zoomX',
+      layout: root.verticalLayout,
+    })
+  );
+
+  chart.children.unshift(
+    am5.Label.new(root, {
+      text: 'Work status per ldap',
+      fontSize: 24,
+      fontWeight: '400',
+      textAlign: 'left',
+      x: am5.percent(50),
+      centerX: am5.percent(50),
+      paddingTop: 0,
+      paddingBottom: 10,
+    })
+  );
+
+  // Add legend
+  // https://www.amcharts.com/docs/v5/charts/xy-chart/legend-xy-series/
+  var legend = chart.children.push(
+    am5.Legend.new(root, {
+      centerX: am5.p50,
+      x: am5.p50,
+    })
+  );
+  let colors = chart.get('colors');
+  let data = addColorInfo(colors,dataArray);
+
+
+
+  // Create axes
+  // https://www.amcharts.com/docs/v5/charts/xy-chart/axes/
+  var yAxis = chart.yAxes.push(
+    am5xy.CategoryAxis.new(root, {
+      categoryField: 'category',
+      renderer: am5xy.AxisRendererY.new(root, { inversed: true }),
+      tooltip: am5.Tooltip.new(root, {
+        themeTags: ['axis'],
+        animationDuration: 200,
+      }),
+    })
+  );
+
+  yAxis.data.setAll(getCategories(data));
+
+  var xAxis = chart.xAxes.push(
+    am5xy.DateAxis.new(root, {
+      baseInterval: { timeUnit: 'day', count: 1 },
+      renderer: am5xy.AxisRendererX.new(root, {}),
+    })
+  );
+
+  // Add series
+  // https://www.amcharts.com/docs/v5/charts/xy-chart/series/
+  var series = chart.series.push(
+    am5xy.ColumnSeries.new(root, {
+      xAxis: xAxis,
+      yAxis: yAxis,
+      openValueXField: 'fromDate',
+      valueXField: 'toDate',
+      categoryYField: 'category',
+      sequencedInterpolation: true,
+    })
+  );
+
+  // series.bullets.push(function() {
+  //   return am5.Bullet.new(root, {
+  //     locationX: 1,
+  //     locationY: 0.5,
+  //     sprite: am5.Label.new(root, {
+  //       centerY: am5.p50,
+  //       text: "{valueX}",
+  //       populateText: true
+  //     })
+  //   });
+  // });
+
+  series.bullets.push(function () {
+    return am5.Bullet.new(root, {
+      locationX: 1,
+      locationY: 0.5,
+      sprite: am5.Label.new(root, {
+        centerX: am5.p100,
+        centerY: am5.p50,
+        text: '{valueX}',
+        fill: am5.color(0xffffff),
+        populateText: true,
+      }),
     });
+  });
 
-    // Set themes
-    // https://www.amcharts.com/docs/v5/concepts/themes/
-    root.setThemes([am5themes_Animated.new(root)]);
+  series.columns.template.setAll({
+    height: 20,
+    templateField: 'columnSettings',
+    strokeOpacity: 0,
+    tooltipText:
+      "{category}: {openValueX.formatDate('yyyy-MM-dd')} - {valueX.formatDate('yyyy-MM-dd')}",
+  });
 
-    // Create chart
-    // https://www.amcharts.com/docs/v5/charts/xy-chart/
-    var chart = root.container.children.push(
-      am5xy.XYChart.new(root, {
-        panX: false,
-        panY: false,
-        wheelX: "panX",
-        wheelY: "zoomX",
-        layout: root.verticalLayout,
-      })
-    );
+  series.data.processor = am5.DataProcessor.new(root, {
+    dateFields: ['fromDate', 'toDate'],
+    dateFormat: 'yyyy-MM-dd',
+  });
+  series.data.setAll(dataArray);
 
-    chart.children.unshift(
-      am5.Label.new(root, {
-        text: "Work status per ldap",
-        fontSize: 24,
-        fontWeight: "400",
-        textAlign: "left",
-        x: am5.percent(50),
-        centerX: am5.percent(50),
-        paddingTop: 0,
-        paddingBottom: 10,
-      })
-    );
+  // Add scrollbars
+  // chart.set("scrollbarX", am5.Scrollbar.new(root, { orientation: "horizontal",}));
+  chart.set('scrollbarY', am5.Scrollbar.new(root, { orientation: 'vertical' }));
 
-    // Add legend
-    // https://www.amcharts.com/docs/v5/charts/xy-chart/legend-xy-series/
-    var legend = chart.children.push(
-      am5.Legend.new(root, {
-        centerX: am5.p50,
-        x: am5.p50,
-      })
-    );
-
-    var colors = chart.get("colors");
-    var colorCount = 0;
-    let data = [];
-    dataArray.map((item) => {
-      item.columnSettings = {
-        fill: am5.Color.brighten(colors.getIndex(colorCount++), 0 + 0.2),
-      };
-      data.push(item);
-    });
-
-    // Create axes
-    // https://www.amcharts.com/docs/v5/charts/xy-chart/axes/
-    var yAxis = chart.yAxes.push(
-      am5xy.CategoryAxis.new(root, {
-        categoryField: "category",
-        renderer: am5xy.AxisRendererY.new(root, { inversed: true }),
-        tooltip: am5.Tooltip.new(root, {
-          themeTags: ["axis"],
-          animationDuration: 200,
-        }),
-      })
-    );
-
-    yAxis.data.setAll(getCategories(data));
-
-    var xAxis = chart.xAxes.push(
-      am5xy.DateAxis.new(root, {
-        baseInterval: { timeUnit: "day", count: 1 },
-        renderer: am5xy.AxisRendererX.new(root, {}),
-      })
-    );
-
-    // Add series
-    // https://www.amcharts.com/docs/v5/charts/xy-chart/series/
-    var series = chart.series.push(
-      am5xy.ColumnSeries.new(root, {
-        xAxis: xAxis,
-        yAxis: yAxis,
-        openValueXField: "fromDate",
-        valueXField: "toDate",
-        categoryYField: "category",
-        sequencedInterpolation: true,
-      })
-    );
-
-    // series.bullets.push(function() {
-    //   return am5.Bullet.new(root, {
-    //     locationX: 1,
-    //     locationY: 0.5,
-    //     sprite: am5.Label.new(root, {
-    //       centerY: am5.p50,
-    //       text: "{valueX}",
-    //       populateText: true
-    //     })
-    //   });
-    // });
-
-    series.bullets.push(function () {
-      return am5.Bullet.new(root, {
-        locationX: 1,
-        locationY: 0.5,
-        sprite: am5.Label.new(root, {
-          centerX: am5.p100,
-          centerY: am5.p50,
-          text: "{valueX}",
-          fill: am5.color(0xffffff),
-          populateText: true,
-        }),
-      });
-    });
-
-    series.columns.template.setAll({
-      height: 20,
-      templateField: "columnSettings",
-      strokeOpacity: 0,
-      tooltipText:
-        "{category}: {openValueX.formatDate('yyyy-MM-dd')} - {valueX.formatDate('yyyy-MM-dd')}",
-    });
-
-    series.data.processor = am5.DataProcessor.new(root, {
-      dateFields: ["fromDate", "toDate"],
-      dateFormat: "yyyy-MM-dd",
-    });
+  // Make stuff animate on load
+  // https://www.amcharts.com/docs/v5/concepts/animations/
+  series.appear();
+  chart.appear(1000, 100);
+  document.getElementById('accepted-button').onclick = function () {
+    let newData = addColorInfo(colors, dataArrayNew)
+    yAxis.data.setAll(getCategories(newData));
+    series.data.setAll(dataArrayNew);
+  };
+  document.getElementById('all-button').onclick = function () {
+    // console.log("----- onclick fucntion section starts -----");
+    let newData = addColorInfo(colors, dataArray)
+    yAxis.data.setAll(getCategories(newData));
     series.data.setAll(dataArray);
+  };
+}
 
-    // Add scrollbars
-    // chart.set("scrollbarX", am5.Scrollbar.new(root, { orientation: "horizontal",}));
-    chart.set(
-      "scrollbarY",
-      am5.Scrollbar.new(root, { orientation: "vertical" })
-    );
+/**
+ * inset columnSettings for color into dataArray as data
+ * @param {}
+ * @returns {}
+ */
+function addColorInfo(colors, dataArray) {
+  let colorCount = 0;
+  let data = [];
+  dataArray.map((item) => {
+    item.columnSettings = {
+      fill: am5.Color.brighten(colors.getIndex(colorCount++), 0 + 0.2),
+    };
+    data.push(item);
+  });
+  return data;
+}
 
-    // Make stuff animate on load
-    // https://www.amcharts.com/docs/v5/concepts/animations/
-    series.appear();
-    chart.appear(1000, 100);
-  }
+function displayBugData(dataArray) {
+      let data = dataArray[3];
+      if (!data) {
+        return 0;
+      }
+      let table = $("#data-table-buganizer").DataTable({
+        searchBuilder: true,
+        filter: true,
+        keys: true,
+        responsive: true,
+        data: data,
+        order: [[2, "asc"]],
+        columns: [
 
-  function displayBugData(dataArray) {
-    let data = dataArray[0];
-    if (!data) {
-      return 0;
-    }
-    $("#data-table-buganizer").DataTable({
-      filter: true,
-      autoWidth: false,
-      data: data,
-      order: [[2, "asc"]],
-      columns: [
-        {
-          data: "id",
-          render: function (data, type, row) {
-            return '<a href="http://b/' + data + '">b/' + data + "</a>";
+          {
+            data: "id",
+            render: function (data, type, row) {
+              return '<a href="http://b/' + data + '">b/' + data + "</a>";
+            },
           },
+          {
+            data: "title",
+          },
+          {
+            data: "assignee",
+          },
+          {
+            data: "primary",
+          },
+          {
+            data: "secondary",
+          },
+          {
+            data: "reviewer",
+          },
+
+          {
+            data: "projectStatus",
+          },
+          {
+            data: "status",
+          },
+          {
+            data: "otd",
+            render: DataTable.render.datetime(
+              "MM/DD/YYYY",
+              "YYYY-MM-DD",
+              "en-US"
+            ),
+          },
+          {
+            data: "eta",
+            render: DataTable.render.datetime(
+              "MM/DD/YYYY",
+              "YYYY-MM-DD",
+              "en-US"
+            ),
+          },
+          {
+            data: "priority",
+          },
+          {
+            data: "severity",
+          },
+          {
+            data: "note",
+          },
+
+        ],
+        createdRow: function (row, data, index) {
+          // console.log(data.eta)
+          if (data.projectStatus == 'On-Hold' || data.projectStatus == 'Blocked') {
+            $(row).find("td:eq(6)").css("color", "#f44336");
+            // $(row).find("td:eq(6)").css("font-weight", "bold");
+            // $(row).find("td:eq(6)").css("background-color", "#eeeeee");
+
+          }
+          if (data.projectStatus == 'In-Progress') {
+            $(row).find("td:eq(6)").css("color", "#2979ff");
+            // $(row).find("td:eq(6)").css("font-weight", "bold");
+            // $(row).find("td:eq(6)").css("background-color", "#eeeeee");
+
+          }
+          // if (data.projectStatus == 'On-Hold' && data.status == 'ACCEPTED') {
+          //   $(row).find("td:eq(7)").css("color", "#0F9D58");
+          // }
+          if (new Date(data.eta) <= new Date() && data.projectStatus == 'In-Progress') {
+            $(row).find("td:eq(9)").css("color", "#f44336");
+            $(row).find("td:eq(9)").css("font-weight", "bold");
+            // $(row).find("td:eq(9)").css("background-color", "#eeeeee");
+          }
         },
-        {
-          data: "title",
-        },
-        {
-          data: "assignee",
-        },
-        {
-          data: "primary",
-        },
-        {
-          data: "secondary",
-        },
-        {
-          data: "reviewer",
-        },
-        {
-          data: "projectStatus",
-        },
-        {
-          data: "status",
-        },
-        {
-          data: "otd",
-          render: DataTable.render.datetime(
-            "MM/DD/YYYY",
-            "YYYY-MM-DD",
-            "en-US"
-          ),
-        },
-        {
-          data: "eta",
-          render: DataTable.render.datetime(
-            "MM/DD/YYYY",
-            "YYYY-MM-DD",
-            "en-US"
-          ),
-        },
-        {
-          data: "priority",
-        },
-        {
-          data: "severity",
-        },
-        // {
-        //   data: "note",
-        // },
-      ],
-    });
-  }
+      });
+      table.searchBuilder.container().prependTo(table.table().container());
+}
+
+
 </script>

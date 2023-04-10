@@ -3,11 +3,11 @@ const WORKSTATUSSHEET_KEY = "1lic2QroDbmdQhx462YQ-RiguLlF378C05V4iPYsKIXo";
 const UNNO_RESPONSE_RANGE = "Response!A2:P";
 const UNNO_TODAY_RANGE = "OOO Today!A2:F";
 const FEEDBACK_RANGE = "feedback!A2:B";
-const PTB_RANGE = "work status (6251749)!A2:P";
+const PTB_RANGE = "work status (6251749)!A2:Q"; // 6375825
 const BANDWIDTH_RANGE = "self_utilisation!A2:B";
 const LDAP_RANGE = "active_ldaps!A2:A";
 
-const LDAPS = [].concat(...utilslib.getSheetData(LDAP_RANGE,WORKSTATUSSHEET_KEY));
+const LDAPS = [].concat(...utilslib.getSheetData(WORKSTATUSSHEET_KEY,LDAP_RANGE));
 
 /**
  *
@@ -50,14 +50,14 @@ function doGet(e) {
 function writeFormResponse(responseText) {
   let email = Session.getActiveUser().getEmail();
   let values = [[email, responseText]];
-  utilslib.appendSheetData(SPREADSHEET_KEY, FEEDBACK_RANGE, values);
+  appendSheetData(SPREADSHEET_KEY, FEEDBACK_RANGE, values);
 }
 /**
  * Retuns an Array of records who are OOO today.
  * @returns {Array}
  */
 function getTodayUno() {
-  return utilslib.getSheetData(UNNO_TODAY_RANGE, SPREADSHEET_KEY);
+  return utilslib.getSheetData(SPREADSHEET_KEY, UNNO_TODAY_RANGE);
 }
 /**
  * @param  {Array} list An array of unno records
@@ -81,7 +81,7 @@ function selectElements(list) {
 function getScriptText() {
   let text = "SELECT * FROM daas_dev_team.team_vfs.productivity WHERE";
   text +=
-    " ldap NOT IN ( 'prasenjitj', 'abin', 'rakshit', 'aroras', 'chaitanaya', 'ssarbhoy', 'khunger', 'nipunc','shaiqjeelani')";
+    " ldap NOT IN ( 'prasenjitj', 'abin', 'rakshit', 'chaitanaya', 'khunger', 'nipunc','shaiqjeelani')";
   text += " AND date > '2021-12-31'";
   text += " AND Activity ='Absenteeism'";
   text += " AND team = 'VF Data Team (GUR)'";
@@ -116,6 +116,7 @@ function getTimesheetData() {
     year: item[6],
     month: month[new Date(item[1]).getMonth()],
   }));
+  Logger.log(output);
   return output;
 }
 /**
@@ -139,7 +140,7 @@ function covertData(array) {
  */
 function mainCallback() {
   let unnoData = covertData(
-    selectElements(utilslib.getSheetData(UNNO_RESPONSE_RANGE, SPREADSHEET_KEY))
+    selectElements(utilslib.getSheetData( SPREADSHEET_KEY, UNNO_RESPONSE_RANGE))
   );
   let timesheetData = getTimesheetData();
   console.log(unnoData[0], "  ", timesheetData[0]);
@@ -152,13 +153,15 @@ function getBugsArray() {
   let key = "hotlistid:2079536 status:open";
   // let key = "hotlistid:2079536 assignee:(akhilbhatnagar@google.com | erai@google.com | jaritika@google.com | sanub@google.com) status:open";
   let bugArray = utilslib.getBugs(key);
-  console.log(bugArray);
+  // console.log(bugArray);
   return [bugArray, LDAPS];
 }
 
 
 function getBugsData() {
-  let data = utilslib.getSheetData(PTB_RANGE, WORKSTATUSSHEET_KEY);
+  let data = utilslib.getSheetData(WORKSTATUSSHEET_KEY, PTB_RANGE);
+  console.log(data)
+
   data =data.map((item) => ({
       id: item[0],
       title: item[1],
@@ -176,19 +179,90 @@ function getBugsData() {
       type: item[13],
       status: item[14],
       note: item[15],
+      mentor: item[16]
     }));
   // data = data.filter((item) => item.status =="ACCEPTED");
-  // console.log(data)
   // console.log(LDAPS);
+  let dataflattened = flattenData(data);
+  return [dataflattened,LDAPS,getBandwidthData(),data];
+}
+
+/**
+ * Flattens an array of data objects
+ * @param {Array} data - An array of data objects to be flattened
+ * @return {Array} flattenedData - An array of flattened data objects
+ */
+function flattenData(data) {
+  const flattenedData = data.map((item) => {
+    const keys = ['assignee','primary', 'secondary', 'reviewer', 'mentor'];
+    let flattenedObjects = [];
+    keys.forEach((key) => {
+      const namesArray = item[key]
+        ? item[key]
+            .split(',')
+            .map((name) => name.trim().replace('@google.com', ''))
+        : [''];
+      namesArray.forEach((name) => {
+        let obj = {};
+        keys.forEach((k) => {
+          if (k === key) {
+            obj[k] = name;
+          } else {
+            obj[k] = '';
+          }
+        });
+        obj.id = item.id;
+        obj.title = item.title;
+        obj.projectStatus = item.projectStatus;
+        obj.otd = item.otd;
+        obj.eta = item.eta;
+        obj.vfOrg = item.vfOrg;
+        obj.project = item.project;
+        obj.assignee = item.assignee;
+        obj.priority = item.priority;
+        obj.severity = item.severity;
+        obj.type = item.type;
+        obj.status = item.status;
+        obj.note = item.note;
+        flattenedObjects.push(obj);
+      });
+    });
+    return flattenedObjects;
+  });
+  return [].concat.apply([], flattenedData);
+}
+
+/**
+ * filters bugs where status is Accepted.
+ * @return {Array} bugsArray
+ */
+function filterAcceptedBugs() {
+  let data = getBugsData()[0]
+  data = data.filter((item) => item.status == 'ACCEPTED');
   return [data,LDAPS,getBandwidthData()];
+}
+/**
+ * filters bugs where project Status is In-Progress.
+ * @return {Array} bugsArray
+ */
+function filterInprogressBugs() {
+  let data = getBugsData()[0];
+  data = data.filter((item) => item.projectStatus == "In-Progress");
+  return Promise.resolve([data, LDAPS, getBandwidthData()]);
 }
 
 function getBandwidthData() {
-  let data = utilslib.getSheetData(BANDWIDTH_RANGE, WORKSTATUSSHEET_KEY);
+  let data = utilslib.getSheetData(WORKSTATUSSHEET_KEY, BANDWIDTH_RANGE);
   let obj ={};
   data.forEach((item) => (
     obj[item[0]] = item[1]
   ));
  return obj;
+}
 
+function testPerformance() {
+
+  console.time('Execution Time');
+  getBugsArray();
+  console.timeEnd('Execution Time');
 }

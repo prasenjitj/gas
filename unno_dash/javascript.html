@@ -176,7 +176,7 @@
     return filteredItems;
   }
   /**
-   * Return Array of objects contaiing records where date is > 2021-12-31
+   * Return Array of objects containg records where date is > 2021-12-31
    * @param {Array.<Object>} data
    * @returns {Array.<Object>} newData
    */
@@ -402,6 +402,7 @@
     // console.log("generate summary output =>", temp);
     $("#data-table-one").DataTable({
       data: temp,
+       keys: true,
       order: [[1, "desc"]],
       //CHANGE THE TABLE HEADINGS BELOW TO MATCH WITH YOUR SELECTED DATA RANGE
       columns: [
@@ -451,6 +452,7 @@
     $(document).ready(function () {
       $("#data-table-two").DataTable({
         data: dataArray,
+         keys: true,
         order: [
           [6, "asc"],
           [5, "asc"],
@@ -493,6 +495,7 @@
     $(document).ready(function () {
       $("#data-table-four").DataTable({
         data: timsheetObjArray,
+         keys: true,
         order: [
           [0, "desc"],
           [2, "asc"],
@@ -543,6 +546,7 @@
     $("#data-table-three").DataTable({
       filter: true,
       data: dataObject,
+      keys: true,
       order: [[2, "desc"]],
       columns: [
         {
@@ -657,8 +661,8 @@
             timesheetDataArray
           );
 
-          // console.log("after date filtering filteredDataObjArray: ", filteredDataObjArray.filter((x) => x.ldap == "sanub"));
-          // console.log("after date filtering fileteredTimesheetDataArray: ", fileteredTimesheetDataArray.filter((x) => x.ldap == "sanub"));
+          console.log("after date filtering filteredDataObjArray: ", filteredDataObjArray.filter((x) => x.ldap == "sayyadz"));
+          console.log("after date filtering fileteredTimesheetDataArray: ", fileteredTimesheetDataArray.filter((x) => x.ldap == "sayyadz"));
           try {
             $("#data-table-two").DataTable().destroy();
             renderTable(filteredDataObjArray);

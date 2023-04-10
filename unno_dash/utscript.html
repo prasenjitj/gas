@@ -1,7 +1,32 @@
 <script>
-  google.script.run.withSuccessHandler(processBugsArray).getBugsData();
+  // document.getElementById("loading-spinner").style.display = "block";
+  $('#overlay').fadeIn().delay(2000).fadeOut();
+  google.script.run.withSuccessHandler(function (bugs) {
+    processBugsArray(bugs);
+    document.getElementById("loading-spinner").style.display = "none";
+  }).withFailureHandler(function (error) {
+    console.error(error);
+    document.getElementById("loading-spinner").style.display = "none";
+    // handle error
+  }).filterInprogressBugs();
+  // google.script.run.withSuccessHandler(processBugsArray).filterInprogressBugs();
   google.script.run.withSuccessHandler(displayBugData).getBugsData();
 
+  /**
+   * @typedef {Object} ComplexityValues
+   * @property {number} P0 - 2.5
+   * @property {number} P1 - 1
+   * @property {number} P2 - 0.5
+   * @property {number} P3 - 0.25
+   * @property {number} S0 - 2.5
+   * @property {number} S1 - 1
+   * @property {number} S2 - 0.5
+   * @property {number} S3 - 0.25
+   */
+
+  /**
+   * @type {ComplexityValues}
+   */
   const complexity = {
     P0: 2.5,
     P1: 1,
@@ -12,16 +37,18 @@
     S2: 0.5,
     S3: 0.25,
   };
+  /**
+   *
+   *
+   * @param {*} bugs
+   */
   function processBugsArray(bugs) {
     let bugsArray = bugs[0];
     let ldaps = bugs[1];
     let bandwidthData = bugs[2];
-    // console.log("ldaps :", ldaps[13]);
-    // console.log(bugsArray);
+
     bugsArray.forEach((item) => {
-      // console.log(item);
       if (item.assignee != "") {
-        // console.log("assignee :", item.assignee );
         item.assignee = item.assignee.replace("@google.com", "");
       }
     });
@@ -35,24 +62,33 @@
     let reviewerMap = Object.fromEntries(
       d3.group(bugsArray, (b) => b.reviewer)
     );
+    let mentorMap = Object.fromEntries(
+      d3.group(bugsArray, (b) => b.mentor)
+    );
     let finalArray = [];
-    // console.log(assigneeMap, primaryMap, secondaryMap, reviewerMap);
-    // console.log(assigneeMap.erai)
     let temp = {};
     ldaps.map((item) => {
       temp[item] = {
-        assignee: assigneeMap[item],
-        primary: primaryMap[item],
-        secondary: secondaryMap[item],
-        reviewer: reviewerMap[item],
+        assignee: dedup(assigneeMap[item]),
+        primary: dedup(primaryMap[item]),
+        secondary: dedup(secondaryMap[item]),
+        reviewer: dedup(reviewerMap[item]),
+        mentor: dedup(mentorMap[item]),
       };
     });
-    // console.log('temp=>',temp);
-    let dataArray = getDatesObj(temp);
+    console.log('temp array :', temp);
     let capArray = getCapacity(temp);
+    let assignmentArray = buildAssignmentObj(temp, 'non-unique');
+    let uniqueAssignmentArray = buildAssignmentObj(temp, 'unique');
+    console.log('temp=>', uniqueAssignmentArray);
+
     capArray = mergeBandwidthData(bandwidthData, capArray);
     let teamArray = teamUtisation(capArray);
     let bandArray = getBndCount(capArray);
+
+    let aData = getAssignment(assignmentArray);
+    displayAssignment(uniqueAssignmentArray);
+
     displayCapacity(capArray);
     renderTeamChart(
       teamArray,
@@ -64,16 +100,76 @@
     renderDistChart(
       bandArray,
       "bwtrendchart",
-      "spline",
+      "areaspline",
       "Bandwidth Distribution",
       "Distribution"
     );
+
+    renderAssignmentChart(
+      aData,
+      "achart",
+      "spline",
+      "Assignment Distribution",
+      "Primary"
+    );
   }
 
+  /**
+   * @function dedup
+   * @param {Array} data - The array of objects to be deduped
+   * @returns {Array} dedupedData - The deduped array of objects
+   * @description Removes the duplicate objects from the input array based on their 'id' property
+   */
+  function dedup(data) {
+    if (!data) {
+      return;
+    }
+    const ids = new Set();
+    return data.filter(({ id }) => !ids.has(id) && ids.add(id));
+  }
+  /**
+   *
+   *
+   * @param {*} array
+   * @return {*}
+   */
+  function getAssignment(array) {
+    let primary = [];
+    let secondary = [];
+    let reviewer = [];
+    for (let i of array) {
+      let key = i.ldap;
+      let p = i.primary;
+      let s = i.secondary;
+      let r = i.reviewer;
+
+      primary.push(
+        [key, p]
+      );
+
+      secondary.push(
+        [key, s]
+      );
+
+      reviewer.push(
+        [key, r]
+      );
+
+    }
+
+    // console.log('assignment data ', primary, secondary, reviewer);
+    return [primary, secondary, reviewer];
+  }
+  /**
+   *
+   *
+   * @param {*} data
+   * @return {*}
+   */
   function getBndCount(data) {
     let obj = {};
     data.forEach((item) => {
-      console.log(item.calculatedbandwidth * 10);
+      // console.log(item.calculatedbandwidth * 10);
       if (obj.hasOwnProperty(item.calculatedbandwidth * 10)) {
         obj[item.calculatedbandwidth * 10] =
           obj[item.calculatedbandwidth * 10] + 1;
@@ -86,11 +182,17 @@
       array.push({
         name: key + "%",
         y: value,
+        color: '#98FB98'
       });
     }
     return array;
   }
-
+  /**
+   *
+   *
+   * @param {*} data
+   * @return {*}
+   */
   function teamUtisation(data) {
     let teamUtObj = {};
     let sum = 0;
@@ -99,34 +201,98 @@
       sum += item.total;
       count++;
     });
-    teamUtObj.utilisation = sum;
-    teamUtObj.bandwidth = count * 10 - sum;
+    // console.log('data ', data);
+    // console.log("utilisation sum : ", sum);
+    // console.log("logger : ",100 - (sum/320 *100));
+    teamUtObj.utilisation = sum / 320 * 100;
+    teamUtObj.bandwidth = 100 - teamUtObj.utilisation;
     let array = [];
     for (let [key, value] of Object.entries(teamUtObj)) {
-      array.push({
-        name: key,
-        y: value,
-      });
+      if (key === 'utilisation') {
+        array.push({
+          name: key,
+          y: value,
+          color: '#98FB98'
+        });
+      } else {
+        array.push({
+          name: key,
+          y: value,
+          color: '#FF7043'
+        });
+      }
+
     }
     return array;
   }
-
+  /**
+   *
+   *
+   * @param {*} bandwidthData
+   * @param {*} capArray
+   * @return {*}
+   */
   function mergeBandwidthData(bandwidthData, capArray) {
     capArray.forEach(
       (object) => (object.bandwidth = bandwidthData[object.ldap])
     );
-    console.log("cap array : ", capArray);
     return capArray;
   }
-
+  /**
+   *
+   *
+   * @param {*} obj
+   * @param {*} key
+   * @param {*} valueObj
+   * @param {*} flag
+   * @param {*} scoreKey
+   */
   function setScore(obj, key, valueObj, flag, scoreKey) {
     let hasValue = valueObj[flag];
     if (hasValue) {
       obj.ldap = key;
       let score = 0;
+      let projectArray = [];
       for (let i of hasValue) {
-        score += complexity[i.priority];
-        obj[scoreKey] = score;
+        let project = i.project;
+        if (!projectArray.includes(project)) {
+          projectArray.push(project);
+          // console.log("score ",complexity[i.priority],i );
+          score += (complexity[i.priority] * complexity[i.severity]);
+          obj[scoreKey] = score;
+        }
+      }
+    } else {
+      obj.ldap = key;
+      obj[scoreKey] = 0;
+    }
+
+    // console.log(obj,hasValue)
+  }
+  /**
+   *
+   *
+   * @param {*} obj
+   * @param {*} key
+   * @param {*} valueObj
+   * @param {*} flag
+   * @param {*} scoreKey
+   */
+  function setReviewerScore(obj, key, valueObj, flag, scoreKey) {
+    let hasValue = valueObj[flag];
+    if (hasValue) {
+      let finalScore = 0
+      obj.ldap = key;
+      let map = d3.group(hasValue, d => d.project);
+      for (let [key, value] of map) {
+        let score = 0;
+        let count = 0;
+        for (let i of value) {
+          score += (complexity[i.priority] * complexity[i.severity]);
+          count = count + 1;
+        }
+        finalScore += score / count;
+        obj[scoreKey] = finalScore;
       }
     } else {
       obj.ldap = key;
@@ -134,14 +300,137 @@
     }
   }
 
+  /**
+   *
+   * @function buildAssignmentObj
+   * @param {Object} data - Object containing the data to be processed
+   * @returns {Array} - Array of objects containing the counts of each role (assignee, primary, secondary, reviewer) for each user (ldap)
+   *
+   */
+  function buildAssignmentObj(data, mode) {
+    let finalArray = [];
+    if (mode == 'non-unique') {
+      for (let [key, value] of Object.entries(data)) {
+        let countObj = {};
+        // let count = 0;
+
+        countAssignment(
+          key, value.assignee, countObj, finalArray, 'assignee');
+        countAssignment(
+          key, value.reviewer, countObj, finalArray, 'reviewer');
+        countAssignment(
+          key, value.primary, countObj, finalArray, 'primary');
+        countAssignment(
+          key, value.secondary, countObj, finalArray, 'secondary');
+        countAssignment(
+          key, value.mentor, countObj, finalArray, 'mentor');
+
+        finalArray.push(countObj);
+      }
+    } else {
+      for (let [key, value] of Object.entries(data)) {
+        let countObj = {};
+        // let count = 0;
+
+        countUniqueAssignment(
+          key, value.assignee, countObj, finalArray, 'assignee');
+        countUniqueAssignment(
+          key, value.reviewer, countObj, finalArray, 'reviewer');
+        countUniqueAssignment(
+          key, value.primary, countObj, finalArray, 'primary');
+        countUniqueAssignment(
+          key, value.secondary, countObj, finalArray, 'secondary');
+        countUniqueAssignment(
+          key, value.mentor, countObj, finalArray, 'mentor');
+
+        finalArray.push(countObj);
+      }
+    }
+    return finalArray;
+  }
+  /**
+   *
+   *
+   * @param {*} key
+   * @param {*} array
+   * @param {*} countObj
+   * @param {*} finalArray
+   * @param {*} type
+   */
+  function countAssignment(key, array, countObj, finalArray, type) {
+    let count = 0;
+    if (array) {
+      let projectArray = [];
+      for (let i in array) {
+        // let project = array[i].project;
+        // console.log(projectArray.includes(project), project);
+        // if (!projectArray.includes(project)) {
+        // projectArray.push(project);
+        count = count + 1;
+        countObj.ldap = key;
+        countObj[type] = count;
+        // }
+      }
+    } else {
+      countObj.ldap = key;
+      countObj[type] = 0;
+    }
+
+  }
+  /**
+    *
+    *
+    * @param {*} key
+    * @param {*} array
+    * @param {*} countObj
+    * @param {*} finalArray
+    * @param {*} type
+    */
+  function countUniqueAssignment(key, array, countObj, finalArray, type) {
+    let count = 0;
+    if (key == 'apurvsharma') {
+      console.log("countObj :", countObj, key, array, count)
+    }
+    if (array) {
+      let projectArray = [];
+      for (let i in array) {
+        let project = array[i].project;
+        //  console.log('project : ',projectArray, key);
+        if (array[i].mentor) {
+          // console.log("count >", count);  
+          // console.log('array value : ',array[i]);
+        }
+        if (!projectArray.includes(project)) {
+          projectArray.push(project);
+          count = count + 1;
+          countObj.ldap = key;
+          countObj[type] = count;
+        }
+      }
+    } else {
+      // console.log('logging else',countObj);
+      countObj.ldap = key;
+      countObj[type] = 0;
+    }
+
+
+  }
+
+  /**
+   *
+   *
+   * @param {*} data
+   * @return {*}
+   */
   function getCapacity(data) {
+    // console.log("Logger get capacity", data);
     let array = [];
     for (let [key, value] of Object.entries(data)) {
       let tempObj = {};
       setScore(tempObj, key, value, "primary", "pScore");
       setScore(tempObj, key, value, "secondary", "sScore");
-      setScore(tempObj, key, value, "reviewer", "rScore");
-      // setScore(tempObj,key, value,'assignee','aScore');
+      setReviewerScore(tempObj, key, value, "reviewer", "rScore");
+      setScore(tempObj, key, value, 'mentor', 'mScore');
       if (Object.keys(tempObj).length) {
         let total = 0;
         if (tempObj.pScore) {
@@ -153,22 +442,25 @@
         if (tempObj.rScore) {
           total += tempObj.rScore;
         }
+        if (tempObj.mScore) {
+          total += tempObj.mScore;
+        }
         tempObj.total = total;
         tempObj.calculatedbandwidth = 10 - total;
       }
       array.push(tempObj);
     }
+    console.log('array', array);
     return array;
   }
 
-  // function getCategories(data) {
-  //   let list = [];
-  //   data = data.map((item) => {
-  //     list.push({ category: item.category });
-  //   });
-  //   return list;
-  // }
 
+  /**
+   *
+   *
+   * @param {*} data
+   * @return {*}
+   */
   function getDatesObj(data) {
     let obj = {};
     for (let [key, value] of Object.entries(data)) {
@@ -177,11 +469,20 @@
       etaArrayBuilder(obj, key, value, tempArray, "primary");
       etaArrayBuilder(obj, key, value, tempArray, "secondary");
       etaArrayBuilder(obj, key, value, tempArray, "reviewer");
+      etaArrayBuilder(obj, key, value, tempArray, "mentor");
     }
     // console.log(obj);
     return getFinalObj(obj);
   }
-
+  /**
+   *
+   *
+   * @param {*} newObj
+   * @param {*} key
+   * @param {*} object
+   * @param {*} tempArray
+   * @param {*} flag
+   */
   function etaArrayBuilder(newObj, key, object, tempArray, flag) {
     let hasFlag = object[flag];
     if (hasFlag) {
@@ -192,7 +493,12 @@
       }
     }
   }
-
+  /**
+   *
+   *
+   * @param {*} datesObj
+   * @return {*}
+   */
   function getFinalObj(datesObj) {
     let dataArray = new Array();
     for (let [key, value] of Object.entries(datesObj)) {
@@ -211,17 +517,32 @@
     // console.log('dataarray =>', dataArray);
     return dataArray;
   }
-
+  /**
+   *
+   *
+   * @param {*} dataArray
+   * @return {*}
+   */
   function displayBugData(dataArray) {
     let data = dataArray[0];
     if (!data) {
       return 0;
     }
-    $("#data-table-buganizer").DataTable({
+    let table = $("#data-table-buganizer").DataTable({
+      searchBuilder: true,
+      columnDefs: [{
+        searchBuilder: {
+          defaultCondition: "="
+        },
+        targets: "_all"
+      }],
       filter: true,
+      keys: true,
+      responsive: true,
       data: data,
       order: [[2, "asc"]],
       columns: [
+
         {
           data: "id",
           render: function (data, type, row) {
@@ -243,6 +564,7 @@
         {
           data: "reviewer",
         },
+
         {
           data: "projectStatus",
         },
@@ -264,12 +586,6 @@
             "YYYY-MM-DD",
             "en-US"
           ),
-          // function(data) {
-          //   console.log("eta :", data);
-          //   if(data != "") {
-          //     return moment(data).format("YYYY-MM-DD")
-          //   } return "";
-          // }
         },
         {
           data: "priority",
@@ -277,20 +593,62 @@
         {
           data: "severity",
         },
-        // {
-        //   data: "note",
-        // },
-      ],
-    });
-  }
+        {
+          data: "note",
+        },
+        {
+          data: "mentor",
+        },
 
-  function displayCapacity(dataArray) {
+      ],
+      createdRow: function (row, data, index) {
+        // console.log(data.eta)
+        if (data.projectStatus == 'On-Hold' || data.projectStatus == 'Blocked') {
+          $(row).find("td:eq(6)").css("color", "#f44336");
+          // $(row).find("td:eq(6)").css("font-weight", "bold");
+          // $(row).find("td:eq(6)").css("background-color", "#eeeeee");
+
+        }
+        if (data.projectStatus == 'In-Progress') {
+          $(row).find("td:eq(6)").css("color", "#2979ff");
+          // $(row).find("td:eq(6)").css("font-weight", "bold");
+          // $(row).find("td:eq(6)").css("background-color", "#eeeeee");
+
+        }
+        // if (data.projectStatus == 'On-Hold' && data.status == 'ACCEPTED') {
+        //   $(row).find("td:eq(7)").css("color", "#0F9D58");
+        // }
+        if (new Date(data.eta) <= new Date() && data.projectStatus == 'In-Progress') {
+          $(row).find("td:eq(9)").css("color", "#f44336");
+          $(row).find("td:eq(9)").css("font-weight", "bold");
+          // $(row).find("td:eq(9)").css("background-color", "#eeeeee");
+        }
+      },
+    });
+    table.searchBuilder.container().prependTo(table.table().container());
+  }
+  /**
+   *
+   *
+   * @param {*} dataArray
+   * @return {*}
+   */
+  function displayAssignment(dataArray) {
     let data = dataArray;
     if (!data) {
       return 0;
     }
-    let table = $("#data-table-capacity").DataTable({
+    let table = $("#data-table-assignments").DataTable({
+      searchBuilder: true,
+      columnDefs: [{
+        searchBuilder: {
+          defaultCondition: "="
+        },
+        targets: "_all"
+      }],
       filter: true,
+      keys: true,
+      responsive: true,
       data: data,
       order: [[4, "desc"]],
       columns: [
@@ -298,13 +656,62 @@
           data: "ldap",
         },
         {
-          data: "pScore",
+          data: "assignee",
         },
         {
-          data: "sScore",
+          data: "primary",
         },
         {
-          data: "rScore",
+          data: "secondary",
+        },
+        {
+          data: "reviewer",
+        },
+        {
+          data: "mentor",
+        }
+      ],
+      createdRow: function (row, data, index) {
+        // console.log(data.assignee);
+        if (data.assignee >= 3) {
+          $(row).find("td:eq(1)").css("color", "#f44336");
+        }
+        if (data.primary >= 3) {
+          $(row).find("td:eq(2)").css("color", "#f44336");
+        }
+        if (data.secondary >= 3) {
+          $(row).find("td:eq(3)").css("color", "#f44336");
+        }
+        if (data.reviewer >= 4) {
+          $(row).find("td:eq(4)").css("color", "#f44336");
+        }
+        if (data.mentor >= 5) {
+          $(row).find("td:eq(5)").css("color", "#f44336");
+        }
+      },
+    });
+    table.searchBuilder.container().prependTo(table.table().container());
+  }
+  /**
+   *
+   *
+   * @param {*} dataArray
+   * @return {*}
+   */
+  function displayCapacity(dataArray) {
+    let data = dataArray;
+    if (!data) {
+      return 0;
+    }
+    let table = $("#data-table-capacity").DataTable({
+      filter: true,
+      keys: true,
+      responsive: true,
+      data: data,
+      order: [[4, "desc"]],
+      columns: [
+        {
+          data: "ldap",
         },
         {
           data: "total",
@@ -321,8 +728,23 @@
         {
           data: "bandwidth",
         },
+        {
+          data: "pScore",
+        },
+        {
+          data: "sScore",
+        },
+        {
+          data: "rScore",
+        },
+        {
+          data: "mScore",
+        }
+
       ],
     });
+
+    //  new $.fn.dataTable.FixedHeader( table );
 
     // Create the chart with initial data
     let chart = Highcharts.chart("piechart", {
@@ -429,8 +851,18 @@
       "Ldap Utilisation Distribution",
       "Bandwidth"
     );
-  }
 
+    // On each draw, update the data in the chart
+    // table.on("draw", function () {
+    //   splineChart.series[0].setData(getbarData(table, "calculatedbandwidth"));
+    // });
+  }
+  /**
+   *
+   *
+   * @param {*} table
+   * @return {*}
+   */
   function chartData(table) {
     let counts = {};
     // Count the number of entries for each position
@@ -460,7 +892,8 @@
       .each(function (val) {
         array.push([val.ldap, Number(val[key]) * 10]);
       });
-    console.log("array ->", array);
+    array.sort((a, b) => { return a[1] - b[1] });
+    // console.log("array ->", array);
     return array;
   }
 
@@ -492,7 +925,7 @@
             enabled: true,
             format: "<b>{point.name}</b>: {point.y:.1f} %",
           },
-          // showInLegend: true
+          showInLegend: true
         },
       },
       series: [
@@ -504,7 +937,15 @@
       ],
     });
   }
-
+  /**
+   *
+   *
+   * @param {*} data
+   * @param {*} id
+   * @param {*} ctype
+   * @param {*} titletext
+   * @param {*} sname
+   */
   function renderDistChart(data, id, ctype, titletext, sname) {
     // Create the chart with initial data
     let chart = Highcharts.chart(id, {
@@ -541,21 +982,19 @@
         },
       },
       plotOptions: {
-        pie: {
-          allowPointSelect: true,
-          cursor: "pointer",
-          dataLabels: {
-            enabled: true,
-            format: "<b>{point.name}</b>: {point.y:.1f} %",
-          },
-          // showInLegend: true
-        },
+        areaspline: {
+          fillOpacity: 0.5
+        }
       },
       series: [
         {
           name: sname,
           colorByPoint: false,
           data: data,
+          color: "#4169E1",
+          marker: {
+            fillColor: "#4169E1"
+          }
         },
       ],
     });
@@ -601,7 +1040,7 @@
           name: sname,
           colorByPoint: false,
           data: getbarData(table, "calculatedbandwidth"),
-          color: "#2979ff",
+          color: "#4169E1",
         },
         {
           name: "Utilisation",
@@ -609,6 +1048,67 @@
           data: getbarData(table, "total"),
           color: "#e53935",
         },
+      ],
+    });
+
+    return chart;
+  }
+
+
+  function renderAssignmentChart(data, id, ctype, titletext, sname) {
+    // Create the chart with initial data
+    let chart = Highcharts.chart(id, {
+      chart: {
+        type: ctype,
+      },
+      title: {
+        text: titletext,
+      },
+      subtitle: {
+        text: "Source: Buganizer",
+      },
+      tooltip: {
+        pointFormat: "<b>{series.name}</b>: <b>{point.y:.1f}</b>",
+      },
+      xAxis: {
+        type: "category",
+        labels: {
+          rotation: -45,
+        },
+      },
+      yAxis: {
+        min: 0,
+        title: {
+          text: "Distribution (%)",
+        },
+      },
+      legend: {
+        enabled: true,
+      },
+      accessibility: {
+        point: {
+          valueSuffix: "%",
+        },
+      },
+      series: [
+        {
+          name: sname,
+          colorByPoint: false,
+          data: data[0],
+          color: "#4169E1",
+        },
+        {
+          name: "Secondary",
+          colorByPoint: false,
+          data: data[1],
+          color: "#e53945",
+        },
+        {
+          name: "Reviewer",
+          colorByPoint: false,
+          data: data[2],
+          color: "#FFB300"
+        }
       ],
     });
 

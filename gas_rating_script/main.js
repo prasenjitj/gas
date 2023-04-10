@@ -1,4 +1,7 @@
 /*jshint esversion: 6 */
+
+// import "google-apps-script";
+
 // Main function is createAll()
 // let header = ["process", "bug_title", "breakup"];
 // Rating template file ID
@@ -16,7 +19,7 @@ const ONTOFOLDERID = "1aJGiouv26Qgy9pj2nAnRb7-503ndyitd";
 // Replace folder Id for corresponding Team e.g for vf lang use vfLangFolderID
 const destFolder = DriveApp.getFolderById(DATAFOLDERID);
 
-var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
 
 var trixLdaps = [];
 // var ldapMapping = {
@@ -39,7 +42,7 @@ for (var i = 1; i < dataValues.length; i++) {
 // -------------------------------------------------
 
 function initializeTest() {
-  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  // var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   // change value to sheet name for team e.g vf_lang, vf_data or vf_onto
   var rawSheet = spreadsheet.getSheetByName("vf_data");
   var dataValues = rawSheet.getDataRange().getValues();
